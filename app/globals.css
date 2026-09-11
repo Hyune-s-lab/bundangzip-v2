@@ -2964,3 +2964,31 @@ select {
 .publication-delete-dialog h2 { font-size: 19px; }
 .publication-delete-dialog p { font-size: 13px; line-height: 1.8; margin: 14px 0; }
 .publication-delete-confirm { background: #b54343; }
+
+/* Compact public-material list. */
+.publication-list-page { padding-top: 20px; }
+.publication-list-heading { margin: 0 0 16px; }
+.publication-list-title { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.publication-list-title h1 { flex-shrink: 0; font-size: 22px; margin: 0; }
+.publication-description { margin: 0; font-size: 12px; font-weight: 400; line-height: 1.65; color: #7b8799; }
+.publication-list-heading > .primary-button { margin-left: auto; flex-shrink: 0; padding: 9px 13px; min-height: 38px; font-size: 12px; }
+.publication-list { gap: 12px; margin-top: 0; }
+.publication-list-card { position: relative; padding: 0; border-radius: 10px; }
+.publication-card-link { padding: 14px 16px; }
+.publication-card-link > div { padding-right: 60px; min-height: 24px; }
+.publication-list-card h2 { margin: 8px 0 5px; font-size: 15px; }
+.publication-list-card p { margin: 0; font-size: 11px; line-height: 1.6; }
+.publication-list-card > .publication-delete-button { position: absolute; top: 10px; right: 10px; margin: 0; padding: 5px 7px; font-size: 11px; border-color: transparent; }
+.publication-modal { display: none; }
+.publication-modal[open] { display: flex; flex-direction: column; }
+.publication-modal-heading { height: auto; min-height: 64px; flex-shrink: 0; gap: 16px; padding-block: 10px; }
+.publication-modal-title { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.publication-modal-title > strong { white-space: nowrap; font-size: 17px; }
+.publication-modal-heading > button { flex-shrink: 0; }
+.publication-modal-body { height: auto; flex: 1; min-height: 0; }
+@media (max-width: 800px) {
+  .publication-list-title, .publication-modal-title { align-items: flex-start; gap: 12px; }
+  .publication-list-heading .primary-button { margin-top: 0; }
+  .publication-description { font-size: 11px; }
+  .publication-list-page { padding: 16px; }
+}
