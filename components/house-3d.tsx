@@ -37,6 +37,8 @@ import { addFurnishings } from "@/lib/furnishings-scene";
 import { furnishings, furnishingLabel } from "@/lib/furnishings";
 
 type Props = {
+  onCapture?: (image: string) => void;
+  onCaptureError?: () => void;
   previewOnly?: boolean;
   showFurnishings: boolean;
   onToggleFurnishings: () => void;
@@ -87,6 +89,7 @@ export default function House3D(props: Props) {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch {
       setError(true);
+      props.onCaptureError?.();
       return;
     }
     setError(false);
@@ -526,6 +529,26 @@ export default function House3D(props: Props) {
       }
     };
     render();
+    if (props.onCapture) {
+      try {
+        renderer.render(scene, camera);
+        const snapshot = document.createElement("canvas");
+        snapshot.width = 1176; snapshot.height = 960;
+        const ctx = snapshot.getContext("2d")!;
+        ctx.drawImage(renderer.domElement, 0, 0, snapshot.width, snapshot.height);
+        // HTML room labels are painted onto the frozen 3D view as well.
+        ctx.font = "600 15px sans-serif"; ctx.textAlign = "center";
+        for (const room of props.rooms) {
+          const [x, z] = toWorld(...furnishingLabel(room, props.showFurnishings));
+          const p = new THREE.Vector3(x, 0.12, z).project(camera);
+          const sx = (p.x + 1) * snapshot.width / 2, sy = (1 - p.y) * snapshot.height / 2;
+          ctx.fillStyle = "rgba(255,255,255,.85)";
+          ctx.fillRect(sx - 38, sy - 13, 76, 24);
+          ctx.fillStyle = "#3e4858"; ctx.fillText(room.name, sx, sy + 4);
+        }
+        props.onCapture(snapshot.toDataURL("image/jpeg", 0.9));
+      } catch { props.onCaptureError?.(); }
+    }
     setReady(true);
     highlight(latest.current.locatedRoom?.id ?? null);
     return () => {

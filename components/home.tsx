@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -587,6 +588,7 @@ export default function Home() {
               >
                 리모델링 후 <span>To-be</span>
               </button>
+              <Link href="/publications" className="publication-entry">공개 자료 만들기 ↗</Link>
             </nav>
             {config && (view === "3d" ? (
               <House3D
