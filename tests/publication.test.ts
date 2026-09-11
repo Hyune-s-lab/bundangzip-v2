@@ -242,3 +242,39 @@ test("deletion and draft saving use CAS and cannot restore a deleted brief", asy
   if (surviving) await deletePublication(p.id, surviving.version);
   await assert.rejects(getPublication(p.id), { status: 404 });
 });
+
+test("global publication codes survive publishing and deletion without reuse", async () => {
+  const { publicationCode } = await import("../lib/publication-code");
+  const { deletePublication } = await import("../lib/publication-store");
+  const first = await createPublication(randomUUID(), snapshots, 1);
+  const second = await createPublication(randomUUID(), snapshots, 1);
+  assert.ok(first.sequence && second.sequence === first.sequence + 1);
+  const published = await editPublication(first.id, edit(first), true);
+  assert.equal(published.sequence, first.sequence);
+  assert.equal((await getPublicPublication(first.id)).sequence, first.sequence);
+  await deletePublication(first.id, published.version);
+  const next = await createPublication(randomUUID(), snapshots, 1);
+  assert.equal(next.sequence, second.sequence + 1);
+  assert.equal(publicationCode(1), "BD-001");
+  assert.equal(publicationCode(1000), "BD-1000");
+});
+
+test("older published records receive one stable code without changing their text or timestamps", async () => {
+  const { readFile, writeFile } = await import("node:fs/promises");
+  const { assignPublicationSequence } = await import("../lib/publication-store");
+  const p = await createPublication(randomUUID(), snapshots);
+  const published = await editPublication(p.id, edit(p), true);
+  const filename = path.join(dir, "publications", p.id + ".json");
+  const legacy = JSON.parse(await readFile(filename, "utf8"));
+  delete legacy.sequence;
+  await writeFile(filename, JSON.stringify(legacy));
+  const [a, b] = await Promise.all([assignPublicationSequence(p.id), assignPublicationSequence(p.id)]);
+  assert.equal(a.sequence, b.sequence);
+  assert.equal(a.version, published.version + 1);
+  assert.deepEqual(a.brief, published.brief);
+  assert.deepEqual(a.snapshots, published.snapshots);
+  assert.equal(a.snapshotAt, published.snapshotAt);
+  assert.equal(a.publishedAt, published.publishedAt);
+  assert.equal(a.updatedAt, published.updatedAt);
+  assert.deepEqual(await assignPublicationSequence(p.id), a);
+});

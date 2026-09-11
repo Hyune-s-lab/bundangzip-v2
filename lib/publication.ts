@@ -67,6 +67,7 @@ export type Publication = {
   state: "draft" | "published";
   version: number;
   number?: number;
+  sequence?: number;
   title: string;
   introduction: string;
   snapshotAt: string;
@@ -84,6 +85,7 @@ export type PublicationSummary = Pick<
   | "state"
   | "title"
   | "number"
+  | "sequence"
   | "snapshotAt"
   | "updatedAt"
   | "publishedAt"
@@ -91,6 +93,7 @@ export type PublicationSummary = Pick<
 export type PublicPublication = Pick<
   Publication,
   | "number"
+  | "sequence"
   | "snapshotAt"
   | "publishedAt"
   | "snapshots"
@@ -157,6 +160,7 @@ export function snapshotDecisions(
 export function publicPublication(p: Publication): PublicPublication {
   return {
     number: p.number,
+    sequence: p.sequence,
     snapshotAt: p.snapshotAt,
     publishedAt: p.publishedAt,
     snapshots: { ...p.snapshots },

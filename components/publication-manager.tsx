@@ -13,11 +13,11 @@ import {
   Sparkles,
   MessageCircle,
 } from "lucide-react";
+import { publicationCode } from "@/lib/publication-code";
 import type { Comment } from "@/lib/model";
 import PublicationDeleteButton from "./publication-delete-button";
 import SnapshotCapture from "./snapshot-capture";
 import PublicationView, {
-  publicationDate,
   SnapshotViewer,
 } from "./publication-view";
 import {
@@ -247,13 +247,8 @@ export function PublicationList({
                   {p.state === "draft" ? "초안" : "발행됨"}
                 </span>
               </div>
-              <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
-              <p>
-                <time dateTime={p.publishedAt ?? p.snapshotAt}>
-                  {publicationDate(p.publishedAt ?? p.snapshotAt)}
-                </time>{" "}
-                {p.publishedAt ? "발행" : "생성"} · 채택안 {p.decisionCount}개
-              </p>
+              <h2>업체 전달용 요약 · {publicationCode(p.sequence)}</h2>
+              <p>채택안 {p.decisionCount}개</p>
             </Link>
           <PublicationDeleteButton publication={p} disabled={phase !== "idle"}
             onDeleted={() => setRemoved((ids) => [...ids, p.id])} />
@@ -537,22 +532,7 @@ export function PublicationEditor({
       ) : (
         <main className="publication-page">
           <header className="publication-header">
-            <p className="publication-meta">
-              {form.number ? `${form.number}호 · ` : ""}생성{" "}
-              <time dateTime={form.snapshotAt}>
-                {publicationDate(form.snapshotAt)}
-              </time>{" "}
-              (한국 시간)
-              {form.updatedAt !== form.snapshotAt && (
-                <>
-                  {" "}
-                  · 최종 저장{" "}
-                  <time dateTime={form.updatedAt}>
-                    {publicationDate(form.updatedAt)}
-                  </time>
-                </>
-              )}
-            </p>
+            <p className="publication-meta">{publicationCode(form.sequence)}</p>
           </header>
           <div className="publication-layout">
             <SnapshotViewer snapshots={form.snapshots} drawingVersion={form.drawingVersion} />

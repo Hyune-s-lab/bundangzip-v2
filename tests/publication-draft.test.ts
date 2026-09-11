@@ -110,3 +110,13 @@ test("concurrent daily reservations are unique, retries stable, and numbering fo
     1,
   );
 });
+
+test("global sequences are unique under concurrent requests and stable on retry", async () => {
+  const { reservePublicationSequence } = await import("../lib/publication-number");
+  const ids = Array.from({ length: 5 }, () => randomUUID());
+  const assigned = await Promise.all(ids.map(reservePublicationSequence));
+  assert.equal(new Set(assigned).size, ids.length);
+  const retries = await Promise.all([reservePublicationSequence(ids[0]), reservePublicationSequence(ids[0])]);
+  assert.deepEqual(retries, [assigned[0], assigned[0]]);
+  assert.ok(await reservePublicationSequence(randomUUID()) > Math.max(...assigned));
+});

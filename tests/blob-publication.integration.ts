@@ -49,6 +49,7 @@ async function main() {
     const p = await createPublication(randomUUID(), snapshots, 1);
     assert.equal(p.decisions.length, 1);
     assert.equal(p.number, 1);
+    assert.equal(p.sequence, 1);
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     const numbers = await Promise.all(ids.map(id => reservePublicationNumber(id, p.snapshotAt)));
     assert.deepEqual([...numbers].sort((a, b) => a - b), [2, 3, 4]);
@@ -92,8 +93,10 @@ async function main() {
     await assert.rejects(getPublicPublication(p.id), { status: 404 });
     await assert.rejects(createPublication(p.id, snapshots, 1), { status: 410 });
     await assert.rejects(editPublication(p.id, request, true), { status: 404 });
+    const next = await createPublication(randomUUID(), snapshots, 1);
+    assert.equal(next.sequence, 2);
     console.log(
-      "Blob: versioned snapshots, CAS, retry, publication and deletion passed",
+      "Blob: global codes, versioned snapshots, CAS, retry, publication and deletion passed",
     );
   } finally {
     const records = await list({ prefix: `bundangzip/${ns}/` });
