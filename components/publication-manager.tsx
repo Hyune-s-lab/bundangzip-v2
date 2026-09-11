@@ -11,7 +11,9 @@ import {
   Send,
   Trash2,
   Sparkles,
+  MessageCircle,
 } from "lucide-react";
+import type { Comment } from "@/lib/model";
 import SnapshotCapture from "./snapshot-capture";
 import PublicationView, {
   publicationDate,
@@ -46,8 +48,18 @@ export function PublicationList({
   initial: PublicationSummary[];
 }) {
   const router = useRouter();
-  const [phase, setPhase] = useState<"idle" | "capture" | "save">("idle");
+  const [phase, setPhase] = useState<
+    "idle" | "checking" | "confirm" | "capture" | "save"
+  >("idle");
   const [error, setError] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
+  const confirmDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = confirmDialog.current;
+    if (phase === "confirm") {
+      if (!dialog?.open) dialog?.showModal();
+    } else dialog?.close();
+  }, [phase]);
   const pending = useRef<{ id: string; snapshots: Snapshots } | null>(null);
   const inFlight = useRef(false);
   const save = async (snapshots: Snapshots) => {
@@ -69,6 +81,29 @@ export function PublicationList({
       inFlight.current = false;
     }
   };
+  const start = async () => {
+    if (inFlight.current || phase !== "idle") return;
+    if (pending.current) {
+      void save(pending.current.snapshots);
+      return;
+    }
+    inFlight.current = true;
+    setPhase("checking");
+    setError("");
+    try {
+      const { comments } = await api<{ comments: Comment[] }>("/api/comments");
+      const count = comments.filter(
+        (c) => c.status === "pending" && !c.deletion,
+      ).length;
+      setPendingCount(count);
+      setPhase(count > 0 ? "confirm" : "capture");
+    } catch (e) {
+      setError((e as Error).message);
+      setPhase("idle");
+    } finally {
+      inFlight.current = false;
+    }
+  };
   return (
     <main className="publication-page">
       <Link href="/" className="publication-back">
@@ -83,20 +118,18 @@ export function PublicationList({
         <button
           className="primary-button"
           disabled={phase !== "idle"}
-          onClick={() => {
-            setError("");
-            if (pending.current) void save(pending.current.snapshots);
-            else setPhase("capture");
-          }}
+          onClick={() => void start()}
         >
           <Plus size={17} />
-          {phase === "capture"
-            ? "도면을 저장하는 중…"
-            : phase === "save"
-              ? "초안을 만드는 중…"
-              : pending.current
-                ? "초안 저장 다시 시도"
-                : "현재 상태로 초안 만들기"}
+          {phase === "checking"
+            ? "의견을 확인하는 중…"
+            : phase === "capture"
+              ? "도면을 저장하는 중…"
+              : phase === "save"
+                ? "초안을 만드는 중…"
+                : pending.current
+                  ? "초안 저장 다시 시도"
+                  : "현재 상태로 초안 만들기"}
         </button>
       </header>
       <p className="publication-notice">
@@ -119,6 +152,46 @@ export function PublicationList({
           }}
         />
       )}
+      <dialog
+        ref={confirmDialog}
+        className="composer-dialog"
+        aria-labelledby="pending-confirm-title"
+        aria-describedby="pending-confirm-description"
+        onCancel={() => setPhase("idle")}
+      >
+        <div className="dialog-heading">
+          <span className="dialog-room">
+            <MessageCircle size={17} /> 요약 전 확인
+          </span>
+        </div>
+        <h2 id="pending-confirm-title">
+          아직 검토 중인 의견이 {pendingCount}개 있습니다.
+        </h2>
+        <p id="pending-confirm-description" className="publication-muted">
+          그래도 진행할까요?
+          <br />
+          채택된 의견만 요약되며, 검토 중이거나 기각된 의견은 제외됩니다.
+        </p>
+        <div className="dialog-footer">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setPhase("idle")}
+          >
+            돌아가기
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              confirmDialog.current?.close();
+              setPhase("capture");
+            }}
+          >
+            계속 진행
+          </button>
+        </div>
+      </dialog>
       <div className="publication-list">
         {initial.length === 0 && (
           <div className="publication-list-empty">
