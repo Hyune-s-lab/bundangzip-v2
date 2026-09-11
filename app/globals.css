@@ -459,10 +459,9 @@ select {
   margin-bottom: 17px;
   padding: 0 0 0 4px;
 }
-.drawing-heading-actions {
+.drawing-view-actions {
   display: flex;
   align-items: center;
-  align-self: flex-start;
   flex-shrink: 0;
   gap: 10px;
   margin-left: auto;
@@ -2604,10 +2603,17 @@ select {
     padding: 7px;
   }
 }
+.drawing-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -3px 0 14px;
+}
 .scenario-tabs {
   display: flex;
+  flex-shrink: 0;
   gap: 5px;
-  margin: -3px 0 14px;
 }
 .scenario-tabs button {
   display: flex;
@@ -2698,8 +2704,9 @@ select {
   color: #9ba7ba;
 }
 @media (max-width: 800px) {
-  .scenario-tabs {
+  .drawing-controls {
     margin-bottom: 12px;
+    gap: 6px;
   }
   .scenario-tabs button {
     padding: 8px 10px;
@@ -2884,9 +2891,10 @@ select {
   .publication-diagram { position: static; width: 70%; margin: 0 auto 24px; }
 }
 @media (max-width: 800px) {
-  .scenario-tabs { flex-wrap: wrap; }
-  .section-heading { flex-wrap: wrap; }
-  .drawing-heading-actions { gap: 8px; }
+  .scenario-tabs { gap: 2px; }
+  .scenario-tabs button { padding-inline: 7px; font-size: 11px; }
+  .drawing-view-actions { gap: 5px; }
+  .drawing-controls .plan-view-switch button { padding-inline: 9px; }
 }
 
 .publication-brief-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:20px 0 12px; }

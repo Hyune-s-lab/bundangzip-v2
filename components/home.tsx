@@ -571,7 +571,23 @@ export default function Home() {
                       : "우리 집 3D"}
                 </h1>
               </div>
-              <div className="drawing-heading-actions">
+            </div>
+            <div className="drawing-controls">
+              <nav className="scenario-tabs" aria-label="리모델링 전후">
+                <button
+                  aria-current={scenario === "as-is" ? "page" : undefined}
+                  onClick={() => setScenario("as-is")}
+                >
+                  현재 모습
+                </button>
+                <button
+                  aria-current={scenario === "to-be" ? "page" : undefined}
+                  onClick={() => setScenario("to-be")}
+                >
+                  리모델링 후
+                </button>
+              </nav>
+              <div className="drawing-view-actions">
                 <button
                   className="publication-entry"
                   aria-haspopup="dialog"
@@ -595,20 +611,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <nav className="scenario-tabs" aria-label="리모델링 전후">
-              <button
-                aria-current={scenario === "as-is" ? "page" : undefined}
-                onClick={() => setScenario("as-is")}
-              >
-                현재 모습
-              </button>
-              <button
-                aria-current={scenario === "to-be" ? "page" : undefined}
-                onClick={() => setScenario("to-be")}
-              >
-                리모델링 후
-              </button>
-            </nav>
             {config &&
               (view === "3d" ? (
                 <House3D
