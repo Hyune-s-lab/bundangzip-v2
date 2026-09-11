@@ -43,7 +43,7 @@ export function sameOrigin(request: Request) {
   if (request.headers.get("sec-fetch-site") === "cross-site")
     throw new HttpError(403, "허용되지 않은 요청입니다.");
 }
-export async function readJson(request: Request) {
+export async function readJson(request: Request, maxBytes = 16000) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new HttpError(415, "JSON 요청이 필요합니다.");
   const reader = request.body?.getReader();
@@ -54,7 +54,7 @@ export async function readJson(request: Request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > 16000) {
+    if (size > maxBytes) {
       await reader.cancel();
       throw new HttpError(413, "입력 내용이 너무 길어요.");
     }

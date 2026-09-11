@@ -12,8 +12,11 @@ import {
 import { slidingDoors, openSlidingPanels, wallPaths, storageNiches } from "@/lib/house-geometry";
 import FurnishingsPlan from "./furnishings-plan";
 import { furnishingLabel } from "@/lib/furnishings";
+import { capturePlan } from "@/lib/capture-plan";
 
 type Props = {
+  onCapture?: (image: string) => void;
+  onCaptureError?: () => void;
   previewOnly?: boolean;
   showFurnishings: boolean;
   onToggleFurnishings: () => void;
@@ -26,6 +29,8 @@ type Props = {
 };
 export default function Floorplan({
   previewOnly = false,
+  onCapture,
+  onCaptureError,
   showFurnishings,
   onToggleFurnishings,
   rooms,
@@ -43,6 +48,13 @@ export default function Floorplan({
   const highlightedRoom = locatedRoom?.id || hover || focusedRoom;
   const svg = useRef<SVGSVGElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!onCapture || !svg.current) return;
+    let cancelled = false;
+    capturePlan(svg.current).then((image) => { if (!cancelled) onCapture(image); })
+      .catch(() => { if (!cancelled) onCaptureError?.(); });
+    return () => { cancelled = true; };
+  }, [onCapture, onCaptureError, rooms, showFurnishings]);
   useEffect(() => {
     if (!locatedRoom) return;
     if (
