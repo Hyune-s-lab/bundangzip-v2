@@ -1,6 +1,6 @@
 # Versioned house models
 
-`v1` is the first interactive publication model. Its geometry, furniture layout, room data and renderer are kept with the app so published documents do not follow later dashboard changes. Publications store `drawingVersion: 1`; older image-only documents retain their original images.
+`v1` is the first interactive publication model. Its geometry, furniture layout, room data and renderer are kept with the app so published documents do not follow later dashboard changes. Publications store `drawingVersion: 1`; older image-only documents also display this preserved v1 model. Their original images are retained for printing and WebGL fallback. This legacy mapping is intentional and does not follow the live dashboard.
 
 When changing the house layout or its visual geometry, copy this directory to a new version. Point the dashboard re-exports, snapshot capture and new-publication version at the new model together. Keep every previously published model available and add its viewer to the publication version switch. Never silently fall back to the current model for an unknown version.
 
