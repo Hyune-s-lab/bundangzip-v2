@@ -73,12 +73,14 @@ export type Publication = {
   updatedAt: string;
   publishedAt: string | null;
   snapshots: Snapshots;
+  drawingVersion?: 1;
   decisions: Decision[];
   brief: ContractorBrief;
 };
 export type PublicationSummary = Pick<
   Publication,
   | "id"
+  | "version"
   | "state"
   | "title"
   | "number"
@@ -88,10 +90,22 @@ export type PublicationSummary = Pick<
 > & { decisionCount: number };
 export type PublicPublication = Pick<
   Publication,
-  "number" | "snapshotAt" | "publishedAt" | "snapshots" | "brief"
+  | "number"
+  | "snapshotAt"
+  | "publishedAt"
+  | "snapshots"
+  | "drawingVersion"
+  | "brief"
 >;
 export const createPublicationSchema = z
-  .object({ id: z.uuid(), snapshots: snapshotsSchema })
+  .object({
+    id: z.uuid(),
+    snapshots: snapshotsSchema,
+    drawingVersion: z.literal(1).optional(),
+  })
+  .strict();
+export const deletePublicationSchema = z
+  .object({ expectedVersion: z.number().int().positive() })
   .strict();
 export const editPublicationSchema = z
   .object({
@@ -146,6 +160,7 @@ export function publicPublication(p: Publication): PublicPublication {
     snapshotAt: p.snapshotAt,
     publishedAt: p.publishedAt,
     snapshots: { ...p.snapshots },
+    ...(p.drawingVersion ? { drawingVersion: p.drawingVersion } : {}),
     brief: structuredClone(p.brief),
   };
 }

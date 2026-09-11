@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import type { Comment } from "@/lib/model";
+import PublicationDeleteButton from "./publication-delete-button";
 import SnapshotCapture from "./snapshot-capture";
 import PublicationView, {
   publicationDate,
@@ -52,6 +53,8 @@ export function PublicationList({
   onClose?: () => void;
 }) {
   const router = useRouter();
+  const [removed, setRemoved] = useState<string[]>([]);
+  const publications = initial.filter((p) => !removed.includes(p.id));
   const [phase, setPhase] = useState<
     "idle" | "checking" | "confirm" | "capture" | "save"
   >("idle");
@@ -64,14 +67,14 @@ export function PublicationList({
       if (!dialog?.open) dialog?.showModal();
     } else dialog?.close();
   }, [phase]);
-  const pending = useRef<{ id: string; snapshots: Snapshots } | null>(null);
+  const pending = useRef<{ id: string; snapshots: Snapshots; drawingVersion: 1 } | null>(null);
   const inFlight = useRef(false);
   const save = async (snapshots: Snapshots) => {
     if (inFlight.current) return;
     inFlight.current = true;
     setPhase("save");
     setError("");
-    pending.current ??= { id: crypto.randomUUID(), snapshots };
+    pending.current ??= { id: crypto.randomUUID(), snapshots, drawingVersion: 1 };
     try {
       const result = await api<{ publication: Publication }>(
         "/api/publications",
@@ -228,43 +231,46 @@ export function PublicationList({
         </div>
       </dialog>
       <div className="publication-list">
-        {initial.length === 0 && (
+        {publications.length === 0 && (
           <div className="publication-list-empty">
             아직 만든 자료가 없어요.
             <br />
             현재 모습부터 첫 초안으로 남겨보세요.
           </div>
         )}
-        {initial.map((p) => (
-          <Link
-            key={p.id}
-            className="publication-list-card"
-            href={`/publications/${p.id}`}
-            onClick={
-              onOpen
-                ? (event) => {
-                    event.preventDefault();
-                    onOpen(p.id);
-                  }
-                : undefined
-            }
-          >
-            <div>
-              <span className={`publication-state ${p.state}`}>
-                {p.state === "draft" ? "초안" : "발행됨"}
+        {publications.map((p) => (
+          <article key={p.id} className="publication-list-card">
+            <Link
+              className="publication-card-link"
+              href={`/publications/${p.id}`}
+              onClick={
+                onOpen
+                  ? (event) => {
+                      event.preventDefault();
+                      onOpen(p.id);
+                    }
+                  : undefined
+              }
+            >
+              <div>
+                <span className={`publication-state ${p.state}`}>
+                  {p.state === "draft" ? "초안" : "발행됨"}
+                </span>
+                <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
+              </div>
+              <p>
+                <time dateTime={p.snapshotAt}>
+                  {publicationDate(p.snapshotAt)}
+                </time>{" "}
+                생성 · 채택안 {p.decisionCount}개
+              </p>
+              <span>
+                {p.state === "draft" ? "편집하기 →" : "공개 링크 보기 →"}
               </span>
-              <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
-            </div>
-            <p>
-              <time dateTime={p.snapshotAt}>
-                {publicationDate(p.snapshotAt)}
-              </time>{" "}
-              생성 · 채택안 {p.decisionCount}개
-            </p>
-            <span>
-              {p.state === "draft" ? "편집하기 →" : "공개 링크 보기 →"}
-            </span>
-          </Link>
+            </Link>
+          <PublicationDeleteButton publication={p} disabled={phase !== "idle"}
+            onDeleted={() => setRemoved((ids) => [...ids, p.id])} />
+          </article>
         ))}
       </div>
     </main>
@@ -279,6 +285,7 @@ export function PublicationEditor({
   onBack?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -454,6 +461,12 @@ export function PublicationEditor({
               : "초안"
             : "발행됨 · 읽기 전용"}
         </span>
+        <PublicationDeleteButton publication={saved} disabled={busy || summarizing}
+          onDeleted={() => {
+            onDirtyChange?.(false);
+            if (onBack) onBack();
+            else { router.replace("/publications"); router.refresh(); }
+          }} />
         {editable && (
           <div className="publication-actions">
             <button
@@ -558,7 +571,7 @@ export function PublicationEditor({
             </p>
           </header>
           <div className="publication-layout">
-            <SnapshotViewer snapshots={form.snapshots} />
+            <SnapshotViewer snapshots={form.snapshots} drawingVersion={form.drawingVersion} />
             <section
               className="publication-decisions"
               aria-label="업체 전달용 요약 편집"

@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Floorplan from "./floorplan";
-import { rooms, type Comment } from "@/lib/model";
+import Floorplan from "./house-model/v1/floorplan";
+import { type Comment } from "@/lib/model";
+import { rooms } from "./house-model/v1/rooms";
 import { snapshotKeys, type Snapshots } from "@/lib/publication";
-const House3D = dynamic(() => import("./house-3d"), { ssr: false });
+const House3D = dynamic(() => import("./house-model/v1/house-3d"), { ssr: false });
 const noop = () => {};
 const noComments: Comment[] = [];
 export default function SnapshotCapture({

@@ -37,13 +37,14 @@ test("creation persists the AI summary, number and snapshot timestamp before ret
     calls++;
     return summary;
   };
-  const p = await createSummarizedPublication(id, snapshots, generate);
+  const p = await createSummarizedPublication(id, snapshots, generate, 1);
   assert.deepEqual(p.brief, summary);
+  assert.equal(p.drawingVersion, 1);
   assert.equal(p.version, 2);
   assert.ok(p.number! > 0);
   assert.deepEqual(await getPublication(id), p);
   assert.deepEqual(
-    await createSummarizedPublication(id, snapshots, generate),
+    await createSummarizedPublication(id, snapshots, generate, 1),
     p,
   );
   assert.equal(calls, 1);

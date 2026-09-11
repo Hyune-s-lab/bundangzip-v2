@@ -1,6 +1,11 @@
 "use client";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { PublicPublication, Snapshots } from "@/lib/publication";
+const PublicationDrawing = dynamic(() => import("./publication-drawing"), {
+  ssr: false,
+  loading: () => <p className="publication-model-loading">도면을 불러오는 중…</p>,
+});
 export function publicationDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
@@ -13,7 +18,7 @@ export function publicationDate(value: string) {
     timeZone: "Asia/Seoul",
   }).format(new Date(value));
 }
-export function SnapshotViewer({ snapshots }: { snapshots: Snapshots }) {
+export function SnapshotViewer({ snapshots, drawingVersion }: { snapshots: Snapshots; drawingVersion?: 1 }) {
   const [scenario, setScenario] = useState<"as-is" | "to-be">("as-is");
   const [view, setView] = useState<"2d" | "3d">("2d");
   return (
@@ -39,7 +44,7 @@ export function SnapshotViewer({ snapshots }: { snapshots: Snapshots }) {
             리모델링 후
           </button>
         </div>
-        <div className="plan-view-switch" role="group" aria-label="스냅샷 보기">
+        <div className="plan-view-switch" role="group" aria-label="도면 보기">
           <button
             type="button"
             aria-pressed={view === "2d"}
@@ -56,13 +61,18 @@ export function SnapshotViewer({ snapshots }: { snapshots: Snapshots }) {
           </button>
         </div>
       </div>
+      {drawingVersion === 1 && (
+        <PublicationDrawing scenario={scenario} view={view} fallback={snapshots[`${scenario}-${view}`]} />
+      )}
       <img
-        className="publication-snapshot"
+        className={`publication-snapshot${drawingVersion === 1 ? " publication-print-snapshot" : ""}`}
         src={snapshots[`${scenario}-${view}`]}
         alt={`${scenario === "as-is" ? "현재 모습" : "리모델링 후"} ${view === "2d" ? "평면도" : "3D 모형"} 스냅샷`}
       />
       <p className="publication-image-note">
-        촬영 시점의 고정된 모습 · 3D는 이미지로 제공됩니다.
+        {drawingVersion === 1
+          ? "생성 시점의 도면 · 보기 설정은 자료 내용을 변경하지 않습니다."
+          : "이 자료는 이미지로 저장되어 있습니다. 새 초안에서는 가구·벽장 표시와 3D 회전을 사용할 수 있습니다."}
       </p>
     </section>
   );
@@ -95,7 +105,7 @@ export default function PublicationView({
         </p>
       </header>
       <div className="publication-layout">
-        <SnapshotViewer snapshots={p.snapshots} />
+        <SnapshotViewer snapshots={p.snapshots} drawingVersion={p.drawingVersion} />
         <section
           className="publication-decisions"
           aria-label="업체 전달용 요약"

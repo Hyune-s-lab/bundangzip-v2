@@ -197,3 +197,48 @@ test("draft inputs cannot inject authors, arbitrary images, or unknown decisions
   await assert.rejects(getPublicPublication(randomUUID()), { status: 404 });
   await assert.rejects(getPublication("../../.env.local"), { status: 404 });
 });
+
+test("interactive model version survives edits and publish; image-only records stay image-only", async () => {
+  const p = await createPublication(randomUUID(), snapshots, 1);
+  assert.equal(p.drawingVersion, 1);
+  assert.deepEqual(await createPublication(p.id, snapshots, 1), p);
+  await assert.rejects(createPublication(p.id, snapshots), { status: 409 });
+  assert.equal(editPublicationSchema.safeParse({ ...edit(p), drawingVersion: 1 }).success, false);
+  const published = await editPublication(p.id, edit(p), true);
+  assert.equal(published.drawingVersion, 1);
+  assert.equal((await getPublicPublication(p.id)).drawingVersion, 1);
+  const legacy = await createPublication(randomUUID(), snapshots);
+  assert.equal(legacy.drawingVersion, undefined);
+  assert.equal(createPublicationSchema.safeParse({ id: randomUUID(), snapshots, drawingVersion: 999 }).success, false);
+});
+
+test("deleting a published brief revokes its link and blocks recreation and stale writes", async () => {
+  const { deletePublication } = await import("../lib/publication-store");
+  const p = await createPublication(randomUUID(), snapshots, 1);
+  const publicationInput = edit(p);
+  const published = await editPublication(p.id, publicationInput, true);
+  await assert.rejects(deletePublication(p.id, p.version), { status: 409 });
+  await deletePublication(p.id, published.version);
+  await deletePublication(p.id, published.version);
+  await assert.rejects(getPublicPublication(p.id), { status: 404 });
+  await assert.rejects(getPublication(p.id), { status: 404 });
+  await assert.rejects(createPublication(p.id, snapshots, 1), { status: 410 });
+  await assert.rejects(editPublication(p.id, publicationInput, true), { status: 404 });
+  assert.equal((await listPublications()).some((item) => item.id === p.id), false);
+  const next = await createPublication(randomUUID(), snapshots, 1);
+  assert.ok(next.number! > published.number!);
+});
+
+test("deletion and draft saving use CAS and cannot restore a deleted brief", async () => {
+  const { deletePublication } = await import("../lib/publication-store");
+  const p = await createPublication(randomUUID(), snapshots, 1);
+  const results = await Promise.allSettled([
+    editPublication(p.id, edit(p)),
+    deletePublication(p.id, p.version),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+  const surviving = (await listPublications()).find((item) => item.id === p.id);
+  if (surviving) await deletePublication(p.id, surviving.version);
+  await assert.rejects(getPublication(p.id), { status: 404 });
+});

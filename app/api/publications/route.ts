@@ -25,6 +25,8 @@ export async function POST(request: Request) {
         publication: await createSummarizedPublication(
           input.id,
           input.snapshots,
+          undefined,
+          input.drawingVersion,
         ),
       },
       201,
