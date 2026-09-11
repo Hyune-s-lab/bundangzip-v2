@@ -1,19 +1,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { PublicationEditor, PublicationList } from "./publication-manager";
+import { PublicationEditor, PublicationList, PublicationDescription } from "./publication-manager";
 import type { Publication, PublicationSummary } from "@/lib/publication";
 
 type ContentProps = {
   selectedId: string | null;
   onOpen: (id: string | null) => void;
-  onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
 };
 function PublicationContent({
   selectedId,
   onOpen,
-  onClose,
   onDirtyChange,
 }: ContentProps) {
   const [data, setData] = useState<{
@@ -78,7 +76,7 @@ function PublicationContent({
     <PublicationList
       initial={data.publications ?? []}
       onOpen={onOpen}
-      onClose={onClose}
+      embedded
     />
   );
 }
@@ -90,6 +88,7 @@ export default function PublicationDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
+  const backdropPointerDown = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   useEffect(() => {
@@ -112,6 +111,16 @@ export default function PublicationDialog({
       ref={dialog}
       className="publication-modal"
       aria-labelledby="publication-modal-title"
+      onPointerDown={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        backdropPointerDown.current = event.target === event.currentTarget &&
+          (event.clientX < bounds.left || event.clientX > bounds.right ||
+            event.clientY < bounds.top || event.clientY > bounds.bottom);
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && backdropPointerDown.current) close();
+        backdropPointerDown.current = false;
+      }}
       onCancel={(event) => {
         if (event.target !== event.currentTarget) return;
         event.preventDefault();
@@ -119,7 +128,10 @@ export default function PublicationDialog({
       }}
     >
       <div className="publication-modal-heading">
-        <strong id="publication-modal-title">공개 자료</strong>
+        <div className="publication-modal-title">
+          <strong id="publication-modal-title">공개 자료</strong>
+          {!selectedId && <PublicationDescription />}
+        </div>
         <button type="button" aria-label="공개 자료 닫기" onClick={close}>
           <X size={20} />
         </button>
@@ -133,7 +145,6 @@ export default function PublicationDialog({
             setSelectedId(id);
             scroll.current?.scrollTo(0, 0);
           }}
-          onClose={close}
           onDirtyChange={setDirty}
         />
       </div>

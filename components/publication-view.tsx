@@ -85,9 +85,6 @@ export default function PublicationView({
   return (
     <main className="publication-page public-document">
       <header className="publication-header">
-        <span className="publication-brand">
-          bundangzip-v2 <span>공유 자료</span>
-        </span>
         <h1>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h1>
         <p className="publication-meta">
           생성{" "}

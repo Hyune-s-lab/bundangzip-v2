@@ -43,14 +43,22 @@ async function api<T>(url: string, method = "GET", body?: unknown): Promise<T> {
     throw new Error(result.error ?? "요청을 처리하지 못했어요.");
   return result;
 }
+export function PublicationDescription() {
+  return (
+    <p className="publication-description">
+      현재 모습과 리모델링 후의 2D·3D 모습을 고정하고, 채택된 의견의 공간과 본문을 AI가 업체 전달용으로 요약합니다.
+      초안은 가족만 볼 수 있으며 발행한 뒤에 공개 링크가 생깁니다.
+    </p>
+  );
+}
 export function PublicationList({
   initial,
   onOpen,
-  onClose,
+  embedded = false,
 }: {
   initial: PublicationSummary[];
   onOpen?: (id: string) => void;
-  onClose?: () => void;
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [removed, setRemoved] = useState<string[]>([]);
@@ -118,27 +126,14 @@ export function PublicationList({
     }
   };
   return (
-    <main className="publication-page">
-      <Link
-        href="/"
-        className="publication-back"
-        onClick={
-          onClose
-            ? (event) => {
-                event.preventDefault();
-                onClose();
-              }
-            : undefined
-        }
-      >
-        <ArrowLeft size={16} /> 가족 기록장
-      </Link>
+    <main className="publication-page publication-list-page">
       <header className="publication-header publication-list-heading">
-        <div>
-          <span className="publication-brand">bundangzip-v2</span>
-          <h1>공개 자료</h1>
-          <p>도면과 채택안을 담아 인테리어 업체에 전달할 요약서를 만드세요.</p>
-        </div>
+        {!embedded && (
+          <div className="publication-list-title">
+            <h1>공개 자료</h1>
+            <PublicationDescription />
+          </div>
+        )}
         <button
           className="primary-button"
           disabled={phase !== "idle"}
@@ -156,11 +151,6 @@ export function PublicationList({
                   : "현재 상태로 초안 만들기"}
         </button>
       </header>
-      <p className="publication-notice">
-        현재 모습과 리모델링 후의 2D·3D 모습을 고정하고, 채택된 의견의 공간과
-        본문을 AI가 업체 전달용으로 요약합니다. 초안은 가족만 볼 수 있으며
-        발행한 뒤에 공개 링크가 생깁니다.
-      </p>
       {error && (
         <p className="publication-error" role="alert">
           {error}
@@ -256,17 +246,14 @@ export function PublicationList({
                 <span className={`publication-state ${p.state}`}>
                   {p.state === "draft" ? "초안" : "발행됨"}
                 </span>
-                <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
               </div>
+              <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
               <p>
                 <time dateTime={p.snapshotAt}>
                   {publicationDate(p.snapshotAt)}
                 </time>{" "}
                 생성 · 채택안 {p.decisionCount}개
               </p>
-              <span>
-                {p.state === "draft" ? "편집하기 →" : "공개 링크 보기 →"}
-              </span>
             </Link>
           <PublicationDeleteButton publication={p} disabled={phase !== "idle"}
             onDeleted={() => setRemoved((ids) => [...ids, p.id])} />
@@ -550,9 +537,6 @@ export function PublicationEditor({
       ) : (
         <main className="publication-page">
           <header className="publication-header">
-            <span className="publication-brand">
-              bundangzip-v2 <span>공개용 초안</span>
-            </span>
             <p className="publication-meta">
               {form.number ? `${form.number}호 · ` : ""}생성{" "}
               <time dateTime={form.snapshotAt}>
