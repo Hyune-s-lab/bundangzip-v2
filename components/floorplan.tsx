@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Armchair, Crosshair, Minus, Plus } from "lucide-react";
+import { Armchair, PanelsTopLeft, Crosshair, Minus, Plus } from "lucide-react";
 import {
   wholeHouseId,
   kitchenDiningBoundaryY,
@@ -9,9 +9,14 @@ import {
   type Room,
 } from "@/lib/model";
 
-import { slidingDoors, openSlidingPanels, wallPaths, storageNiches } from "@/lib/house-geometry";
+import {
+  slidingDoors,
+  openSlidingPanels,
+  wallPaths,
+  storageNiches,
+} from "@/lib/house-geometry";
 import FurnishingsPlan from "./furnishings-plan";
-import { furnishingLabel } from "@/lib/furnishings";
+import { furnishingLabel, visibleFurnishings } from "@/lib/furnishings";
 import { capturePlan } from "@/lib/capture-plan";
 
 type Props = {
@@ -19,6 +24,8 @@ type Props = {
   onCaptureError?: () => void;
   previewOnly?: boolean;
   showFurnishings: boolean;
+  showClosets: boolean;
+  onToggleClosets: () => void;
   onToggleFurnishings: () => void;
   rooms: Room[];
   comments: Comment[];
@@ -32,6 +39,8 @@ export default function Floorplan({
   onCapture,
   onCaptureError,
   showFurnishings,
+  showClosets,
+  onToggleClosets,
   onToggleFurnishings,
   rooms,
   comments,
@@ -51,10 +60,17 @@ export default function Floorplan({
   useEffect(() => {
     if (!onCapture || !svg.current) return;
     let cancelled = false;
-    capturePlan(svg.current).then((image) => { if (!cancelled) onCapture(image); })
-      .catch(() => { if (!cancelled) onCaptureError?.(); });
-    return () => { cancelled = true; };
-  }, [onCapture, onCaptureError, rooms, showFurnishings]);
+    capturePlan(svg.current)
+      .then((image) => {
+        if (!cancelled) onCapture(image);
+      })
+      .catch(() => {
+        if (!cancelled) onCaptureError?.();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onCapture, onCaptureError, rooms, showFurnishings, showClosets]);
   useEffect(() => {
     if (!locatedRoom) return;
     if (
@@ -101,36 +117,38 @@ export default function Floorplan({
   };
   return (
     <div className={`plan-panel${previewOnly ? " structure-preview" : ""}`}>
-      {!previewOnly && <div
-        className={`whole-house-control ${locatedRoom?.id === wholeHouseId ? "is-located" : ""}`}
-      >
-        <button className="whole-house-button" onClick={onWholeHouse}>
-          <Plus size={16} /> 집 전체 의견 쓰기
-        </button>
-        {generalComments.length > 0 && (
-          <button
-            className="whole-house-counts"
-            onClick={() => onPin(generalComments[0])}
-            aria-label={`집 전체 의견 ${generalComments.length}개 보기`}
-          >
-            {(["accepted", "pending", "rejected"] as const).map((status) => {
-              const count = generalComments.filter(
-                (c) => c.status === status,
-              ).length;
-              return (
-                <span
-                  key={status}
-                  className={status}
-                  title={`${statusLabels[status]} ${count}개`}
-                  aria-label={`${statusLabels[status]} ${count}개`}
-                >
-                  {count > 99 ? "99+" : count}
-                </span>
-              );
-            })}
+      {!previewOnly && (
+        <div
+          className={`whole-house-control ${locatedRoom?.id === wholeHouseId ? "is-located" : ""}`}
+        >
+          <button className="whole-house-button" onClick={onWholeHouse}>
+            <Plus size={16} /> 집 전체 의견 쓰기
           </button>
-        )}
-      </div>}
+          {generalComments.length > 0 && (
+            <button
+              className="whole-house-counts"
+              onClick={() => onPin(generalComments[0])}
+              aria-label={`집 전체 의견 ${generalComments.length}개 보기`}
+            >
+              {(["accepted", "pending", "rejected"] as const).map((status) => {
+                const count = generalComments.filter(
+                  (c) => c.status === status,
+                ).length;
+                return (
+                  <span
+                    key={status}
+                    className={status}
+                    title={`${statusLabels[status]} ${count}개`}
+                    aria-label={`${statusLabels[status]} ${count}개`}
+                  >
+                    {count > 99 ? "99+" : count}
+                  </span>
+                );
+              })}
+            </button>
+          )}
+        </div>
+      )}
       <div className="plan-stage" ref={viewport}>
         <div
           className={`plan-canvas ${overview ? "overview" : ""}`}
@@ -140,7 +158,11 @@ export default function Floorplan({
             ref={svg}
             viewBox="115 0 735 676"
             className="floorplan"
-            aria-label={previewOnly ? "리모델링 후 평면도. 가구 없이 벽, 창문, 문 구조를 표시합니다." : "분당집 v2 실측 평면도. 공간을 선택하면 의견을 남길 수 있습니다."}
+            aria-label={
+              previewOnly
+                ? "리모델링 후 평면도. 가구 없이 벽, 창문, 문 구조를 표시합니다."
+                : "분당집 v2 실측 평면도. 공간을 선택하면 의견을 남길 수 있습니다."
+            }
           >
             <defs>
               <pattern
@@ -235,7 +257,9 @@ export default function Floorplan({
                   className="room"
                   tabIndex={previewOnly ? undefined : 0}
                   role={previewOnly ? undefined : "button"}
-                  aria-label={previewOnly ? room.name : `${room.name}에 의견 남기기`}
+                  aria-label={
+                    previewOnly ? room.name : `${room.name}에 의견 남기기`
+                  }
                   onPointerEnter={(event) => {
                     if (event.pointerType !== "touch") setHover(room.id);
                   }}
@@ -259,13 +283,36 @@ export default function Floorplan({
             </g>
             {storageNiches.map((niche) => {
               const room = rooms.find((r) => r.id === niche.roomId)!;
-              const select = () => { if (!previewOnly) onChoose(room, room.label[0] / 923, room.label[1] / 676); };
-              return <polygon key={niche.id} points={niche.points} fill={room.kind === "balcony" ? "url(#tiles)" : "#f0eadb"} className="room" role={previewOnly ? undefined : "button"} tabIndex={previewOnly ? undefined : 0}
-                aria-label={previewOnly ? `${room.name} 수납 공간` : `${room.name} 벽장에 의견 남기기`}
-                onPointerEnter={(event) => { if (event.pointerType !== "touch") setHover(room.id); }}
-                onPointerLeave={() => setHover(null)}
-                onClick={select}
-                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); } }} />;
+              const select = () => {
+                if (!previewOnly)
+                  onChoose(room, room.label[0] / 923, room.label[1] / 676);
+              };
+              return (
+                <polygon
+                  key={niche.id}
+                  points={niche.points}
+                  fill={room.kind === "balcony" ? "url(#tiles)" : "#f0eadb"}
+                  className="room"
+                  role={previewOnly ? undefined : "button"}
+                  tabIndex={previewOnly ? undefined : 0}
+                  aria-label={
+                    previewOnly
+                      ? `${room.name} 수납 공간`
+                      : `${room.name} 벽장에 의견 남기기`
+                  }
+                  onPointerEnter={(event) => {
+                    if (event.pointerType !== "touch") setHover(room.id);
+                  }}
+                  onPointerLeave={() => setHover(null)}
+                  onClick={select}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      select();
+                    }
+                  }}
+                />
+              );
             })}
             <g
               className="door-surfaces"
@@ -310,14 +357,8 @@ export default function Floorplan({
                 className="space-divider"
                 d={`M441 146V${kitchenDiningBoundaryY}H581`}
               />
-              <path
-                className="wall"
-                d={wallPaths.join("")}
-              />
-              <path
-                className="storage-line"
-                d="M418 88H441"
-              />
+              <path className="wall" d={wallPaths.join("")} />
+              <path className="storage-line" d="M418 88H441" />
               <path
                 className="window-gap"
                 d="M263 91H371M244 146H362M591 86H688M216 538H363M592 538H691M220 600H682"
@@ -326,8 +367,13 @@ export default function Floorplan({
                 className="window"
                 d="M263 88H371M263 94H371M314 88V94M244 143H362M244 149H362M303 143V149M591 83H688M591 89H688M642 83V89M216 535H363M216 541H363M287 535V541M592 535H691M592 541H691M642 535V541M220 597H682M220 603H682M370 597V603M530 597V603"
               />
-              {storageNiches.map(({ id, opening: [x1, y1, x2, y2] }) =>
-                <path key={id} className="door-opening" d={`M${x1} ${y1}L${x2} ${y2}`} />)}
+              {storageNiches.map(({ id, opening: [x1, y1, x2, y2] }) => (
+                <path
+                  key={id}
+                  className="door-opening"
+                  d={`M${x1} ${y1}L${x2} ${y2}`}
+                />
+              ))}
               <g className="doors">
                 {/* White swing surfaces are separate from the leaf and arc outlines. */}
                 <path
@@ -374,23 +420,49 @@ export default function Floorplan({
               {slidingDoors.map((door) => {
                 const [x1, y1, x2, y2] = door.opening;
                 const length = Math.hypot(x2 - x1, y2 - y1);
-                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-                const trackStart = door.parkOutside === false ? 0 : -(length / (door.panelCount ?? 2) + 1);
+                const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+                const trackStart =
+                  door.parkOutside === false
+                    ? 0
+                    : -(length / (door.panelCount ?? 2) + 1);
                 const trackOffset = door.trackOffset ?? 0;
                 return (
                   <g key={door.id} data-door={door.id} data-door-type="sliding">
                     <title>{door.label} · 열림</title>
-                    <path className="door-opening" d={`M${x1} ${y1}L${x2} ${y2}`} />
+                    <path
+                      className="door-opening"
+                      d={`M${x1} ${y1}L${x2} ${y2}`}
+                    />
                     <g transform={`translate(${x1} ${y1}) rotate(${angle})`}>
-                      <path className="sliding-door-track" d={`M${trackStart} ${trackOffset - 4}H${length}M${trackStart} ${trackOffset + 4}H${length}M${length} ${trackOffset - 4}V${trackOffset + 4}`} />
-                      <path className="sliding-door-direction" d={`M${length * 0.58} 0h${length * 0.24}m-3 -2l3 2l-3 2`} />
+                      <path
+                        className="sliding-door-track"
+                        d={`M${trackStart} ${trackOffset - 4}H${length}M${trackStart} ${trackOffset + 4}H${length}M${length} ${trackOffset - 4}V${trackOffset + 4}`}
+                      />
+                      <path
+                        className="sliding-door-direction"
+                        d={`M${length * 0.58} 0h${length * 0.24}m-3 -2l3 2l-3 2`}
+                      />
                     </g>
-                    {openSlidingPanels(door.opening, door).map(([ax, ay, bx, by], index) => (
-                      <g key={index} transform={`translate(${ax} ${ay}) rotate(${angle})`}>
-                        <rect className={`sliding-door-panel${door.opaque ? " is-opaque" : ""}`} x="0" y="-1" width={Math.hypot(bx - ax, by - ay)} height="2" />
-                        <path className="sliding-door-handle" d={`M${Math.hypot(bx - ax, by - ay) - 3} -2V2`} />
-                      </g>
-                    ))}
+                    {openSlidingPanels(door.opening, door).map(
+                      ([ax, ay, bx, by], index) => (
+                        <g
+                          key={index}
+                          transform={`translate(${ax} ${ay}) rotate(${angle})`}
+                        >
+                          <rect
+                            className={`sliding-door-panel${door.opaque ? " is-opaque" : ""}`}
+                            x="0"
+                            y="-1"
+                            width={Math.hypot(bx - ax, by - ay)}
+                            height="2"
+                          />
+                          <path
+                            className="sliding-door-handle"
+                            d={`M${Math.hypot(bx - ax, by - ay) - 3} -2V2`}
+                          />
+                        </g>
+                      ),
+                    )}
                   </g>
                 );
               })}
@@ -399,7 +471,9 @@ export default function Floorplan({
                 d="M512 221H576V239H512ZM199 296H267V313H199Z"
               />
             </g>
-            {showFurnishings && <FurnishingsPlan />}
+            <FurnishingsPlan
+              items={visibleFurnishings(showFurnishings, showClosets)}
+            />
             {highlightedRoom &&
               rooms
                 .filter((r) => r.id === highlightedRoom)
@@ -427,7 +501,7 @@ export default function Floorplan({
                 return (
                   <g
                     key={room.id}
-                    transform={`translate(${furnishingLabel(room, showFurnishings).join(",")})`}
+                    transform={`translate(${furnishingLabel(room, showFurnishings || showClosets).join(",")})`}
                   >
                     <text
                       className={
@@ -498,13 +572,24 @@ export default function Floorplan({
         </div>
       </div>
       <div className="plan-bottom">
-        {!previewOnly && <button
-          className="furnishings-toggle"
-          aria-pressed={showFurnishings}
-          onClick={onToggleFurnishings}
-        >
-          <Armchair size={15} /> 가구·가전
-        </button>}
+        {!previewOnly && (
+          <div className="furnishing-toggles">
+            <button
+              className="furnishings-toggle"
+              aria-pressed={showFurnishings}
+              onClick={onToggleFurnishings}
+            >
+              <Armchair size={15} /> 가구
+            </button>
+            <button
+              className="furnishings-toggle"
+              aria-pressed={showClosets}
+              onClick={onToggleClosets}
+            >
+              <PanelsTopLeft size={15} /> 벽장
+            </button>
+          </div>
+        )}
         <div className="zoom-controls">
           <button
             title="축소"

@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,6 +19,9 @@ import {
 } from "lucide-react";
 import Floorplan from "./floorplan";
 import dynamic from "next/dynamic";
+const PublicationDialog = dynamic(() => import("./publication-dialog"), {
+  ssr: false,
+});
 const House3D = dynamic(() => import("./house-3d"), {
   ssr: false,
   loading: () => (
@@ -99,6 +101,8 @@ function shortDate(date: string) {
 export default function Home() {
   const [scenario, setScenario] = useState<"as-is" | "to-be">("as-is");
   const [showFurnishings, setShowFurnishings] = useState(true);
+  const [showPublications, setShowPublications] = useState(false);
+  const [showClosets, setShowClosets] = useState(true);
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [stage, setStage] = useState<
     "loading" | "login" | "member" | "dashboard"
@@ -112,7 +116,9 @@ export default function Home() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [filter, setFilter] = useState("all");
   const [statusFilters, setStatusFilters] = useState(allStatusFilters);
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => new Set());
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [activeComment, setActiveComment] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [content, setContent] = useState("");
@@ -219,7 +225,7 @@ export default function Home() {
       if (!dialog?.open) dialog?.showModal();
       feedbackInput.current?.focus();
     } else dialog?.close();
-  }, [feedback]);
+  }, [feedback?.comment.id]);
   useEffect(() => {
     const dialog = deleteDialogRef.current;
     if (deleteTarget && stage === "dashboard") {
@@ -334,7 +340,10 @@ export default function Home() {
       );
       setFilter(draft.room?.id ?? wholeHouseId);
       expandCommentDay(result.comment.createdAt);
-      setStatusFilters((previous) => ({ ...previous, [result.comment.status]: true }));
+      setStatusFilters((previous) => ({
+        ...previous,
+        [result.comment.status]: true,
+      }));
       setActiveComment(result.comment.id);
       setDraft(null);
       setContent("");
@@ -442,7 +451,9 @@ export default function Home() {
   );
   const statusComments = comments.filter((c) => statusFilters[c.status]);
   const visibleComments = roomComments.filter((c) => statusFilters[c.status]);
-  const hasStatusFilter = Object.values(statusFilters).some((enabled) => !enabled);
+  const hasStatusFilter = Object.values(statusFilters).some(
+    (enabled) => !enabled,
+  );
   const commentDays = groupCommentsByDay(visibleComments);
   const isChoosing = stage === "member";
 
@@ -580,45 +591,59 @@ export default function Home() {
                 aria-current={scenario === "as-is" ? "page" : undefined}
                 onClick={() => setScenario("as-is")}
               >
-                현재 모습 <span>As-is</span>
+                현재 모습
               </button>
               <button
                 aria-current={scenario === "to-be" ? "page" : undefined}
                 onClick={() => setScenario("to-be")}
               >
-                리모델링 후 <span>To-be</span>
+                리모델링 후
               </button>
-              <Link href="/publications" className="publication-entry">공개 자료 만들기 ↗</Link>
+              <button
+                className="publication-entry"
+                aria-haspopup="dialog"
+                onClick={() => setShowPublications(true)}
+              >
+                공개 자료 만들기
+              </button>
             </nav>
-            {config && (view === "3d" ? (
-              <House3D
-                key={scenario}
-                previewOnly={scenario === "to-be"}
-                showFurnishings={scenario === "as-is" && showFurnishings}
-                onToggleFurnishings={() => setShowFurnishings((v) => !v)}
-                rooms={config.rooms}
-                comments={scenario === "as-is" ? comments : []}
-                locatedRoom={scenario === "as-is" ? locatedRoom : null}
-                onWholeHouse={chooseWholeHouse}
-                onChoose={chooseRoom}
-                onPin={choosePin}
-              />
-            ) : (
-              <Floorplan
-                key={scenario}
-                previewOnly={scenario === "to-be"}
-                showFurnishings={scenario === "as-is" && showFurnishings}
-                onToggleFurnishings={() => setShowFurnishings((v) => !v)}
-                rooms={config.rooms}
-                comments={scenario === "as-is" ? comments : []}
-                locatedRoom={scenario === "as-is" ? locatedRoom : null}
-                onWholeHouse={chooseWholeHouse}
-                onChoose={chooseRoom}
-                onPin={choosePin}
-              />
-            ))}
+            {config &&
+              (view === "3d" ? (
+                <House3D
+                  key={scenario}
+                  previewOnly={scenario === "to-be"}
+                  showFurnishings={scenario === "as-is" && showFurnishings}
+                  onToggleFurnishings={() => setShowFurnishings((v) => !v)}
+                  showClosets={scenario === "as-is" && showClosets}
+                  onToggleClosets={() => setShowClosets((v) => !v)}
+                  rooms={config.rooms}
+                  comments={scenario === "as-is" ? comments : []}
+                  locatedRoom={scenario === "as-is" ? locatedRoom : null}
+                  onWholeHouse={chooseWholeHouse}
+                  onChoose={chooseRoom}
+                  onPin={choosePin}
+                />
+              ) : (
+                <Floorplan
+                  key={scenario}
+                  previewOnly={scenario === "to-be"}
+                  showFurnishings={scenario === "as-is" && showFurnishings}
+                  onToggleFurnishings={() => setShowFurnishings((v) => !v)}
+                  showClosets={scenario === "as-is" && showClosets}
+                  onToggleClosets={() => setShowClosets((v) => !v)}
+                  rooms={config.rooms}
+                  comments={scenario === "as-is" ? comments : []}
+                  locatedRoom={scenario === "as-is" ? locatedRoom : null}
+                  onWholeHouse={chooseWholeHouse}
+                  onChoose={chooseRoom}
+                  onPin={choosePin}
+                />
+              ))}
             {scenario === "to-be" && (
-              <div className="drawing-footer"><span>12,600 × 13,300 mm</span><span>현재 구조 · 가구 배치 전</span></div>
+              <div className="drawing-footer">
+                <span>12,600 × 13,300 mm</span>
+                <span>현재 구조 · 가구 배치 전</span>
+              </div>
             )}
             {scenario === "as-is" && (
               <>
@@ -686,15 +711,17 @@ export default function Home() {
                         value: wholeHouseId,
                         label: "집 전체",
                         icon: <House size={17} />,
-                        count: statusComments.filter((c) => c.roomId === wholeHouseId)
-                          .length,
+                        count: statusComments.filter(
+                          (c) => c.roomId === wholeHouseId,
+                        ).length,
                       },
                       ...(config?.rooms ?? []).map((room) => ({
                         value: room.id,
                         label: room.name,
                         icon: <MapPin size={16} />,
-                        count: statusComments.filter((c) => c.roomId === room.id)
-                          .length,
+                        count: statusComments.filter(
+                          (c) => c.roomId === room.id,
+                        ).length,
                       })),
                     ]}
                   />
@@ -711,24 +738,36 @@ export default function Home() {
                     <Clock3 size={12} /> 최신순
                   </span>
                 </div>
-                <div className="status-filters" role="group" aria-label="의견 상태 필터">
-                  {(["accepted", "pending", "rejected"] as const).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      role="switch"
-                      aria-checked={statusFilters[status]}
-                      aria-label={`${statusLabels[status]} 의견 표시`}
-                      className={`status-filter ${status}`}
-                      onClick={() => {
-                        setStatusFilters((previous) => ({ ...previous, [status]: !previous[status] }));
-                        setActiveComment(null);
-                      }}
-                    >
-                      <span>{statusLabels[status]}</span>
-                      <span className="status-filter-switch" aria-hidden="true" />
-                    </button>
-                  ))}
+                <div
+                  className="status-filters"
+                  role="group"
+                  aria-label="의견 상태 필터"
+                >
+                  {(["accepted", "pending", "rejected"] as const).map(
+                    (status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        role="switch"
+                        aria-checked={statusFilters[status]}
+                        aria-label={`${statusLabels[status]} 의견 표시`}
+                        className={`status-filter ${status}`}
+                        onClick={() => {
+                          setStatusFilters((previous) => ({
+                            ...previous,
+                            [status]: !previous[status],
+                          }));
+                          setActiveComment(null);
+                        }}
+                      >
+                        <span>{statusLabels[status]}</span>
+                        <span
+                          className="status-filter-switch"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    ),
+                  )}
                   <span className="status-filter-count" aria-live="polite">
                     {visibleComments.length}/{roomComments.length}개
                   </span>
@@ -749,41 +788,47 @@ export default function Home() {
                         {hasStatusFilter
                           ? "선택한 상태의 의견이 없어요"
                           : filter === "all"
-                          ? "첫 번째 생각을 남겨보세요"
-                          : "아직 이 공간의 의견이 없어요"}
+                            ? "첫 번째 생각을 남겨보세요"
+                            : "아직 이 공간의 의견이 없어요"}
                       </h3>
                       <p>
                         {hasStatusFilter
                           ? "상태 토글을 켜면 해당 의견을 볼 수 있어요."
                           : filter === wholeHouseId
-                          ? "예산, 일정, 전체 분위기에 대한 생각을 남겨보세요."
-                          : "평면도의 공간이나 상단 의견 쓰기 버튼을 눌러보세요."}
+                            ? "예산, 일정, 전체 분위기에 대한 생각을 남겨보세요."
+                            : "평면도의 공간이나 상단 의견 쓰기 버튼을 눌러보세요."}
                       </p>
                       {hasStatusFilter ? (
-                        <button type="button" className="text-button" onClick={() => setStatusFilters(allStatusFilters)}>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => setStatusFilters(allStatusFilters)}
+                        >
                           <RotateCcw size={15} /> 모든 상태 보기
                         </button>
-                      ) : filter !== "all" && (
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            if (filter === wholeHouseId)
-                              return chooseWholeHouse();
-                            const room = config!.rooms.find(
-                              (r) => r.id === filter,
-                            )!;
-                            chooseRoom(
-                              room,
-                              room.label[0] / 923,
-                              room.label[1] / 676,
-                            );
-                          }}
-                        >
-                          <Plus size={16} />{" "}
-                          {filter === wholeHouseId
-                            ? "집 전체 의견 쓰기"
-                            : "이 공간에 의견 남기기"}
-                        </button>
+                      ) : (
+                        filter !== "all" && (
+                          <button
+                            className="text-button"
+                            onClick={() => {
+                              if (filter === wholeHouseId)
+                                return chooseWholeHouse();
+                              const room = config!.rooms.find(
+                                (r) => r.id === filter,
+                              )!;
+                              chooseRoom(
+                                room,
+                                room.label[0] / 923,
+                                room.label[1] / 676,
+                              );
+                            }}
+                          >
+                            <Plus size={16} />{" "}
+                            {filter === wholeHouseId
+                              ? "집 전체 의견 쓰기"
+                              : "이 공간에 의견 남기기"}
+                          </button>
+                        )
                       )}
                     </div>
                   ) : (
@@ -797,159 +842,168 @@ export default function Home() {
                             aria-expanded={!collapsed}
                             aria-controls={`timeline-day-${day.key}`}
                             aria-label={`${day.label} 의견 ${day.comments.length}개 ${collapsed ? "펼치기" : "접기"}`}
-                            onClick={() => setCollapsedDays((previous) => {
-                              const next = new Set(previous);
-                              if (next.has(day.key)) next.delete(day.key);
-                              else next.add(day.key);
-                              return next;
-                            })}
+                            onClick={() =>
+                              setCollapsedDays((previous) => {
+                                const next = new Set(previous);
+                                if (next.has(day.key)) next.delete(day.key);
+                                else next.add(day.key);
+                                return next;
+                              })
+                            }
                           >
                             <ChevronDown size={14} aria-hidden="true" />
                             <time dateTime={day.key}>{day.label}</time>
                             <span className="timeline-date-line" />
-                            <span className="timeline-day-count">{day.comments.length}개</span>
+                            <span className="timeline-day-count">
+                              {day.comments.length}개
+                            </span>
                           </button>
-                          <div id={`timeline-day-${day.key}`} hidden={collapsed}>
+                          <div
+                            id={`timeline-day-${day.key}`}
+                            hidden={collapsed}
+                          >
                             {day.comments.map((comment) => {
-                              const room = config?.rooms.find((r) => r.id === comment.roomId);
+                              const room = config?.rooms.find(
+                                (r) => r.id === comment.roomId,
+                              );
                               const member = memberOf(comment.authorId);
                               return (
-                          <article
-                            key={comment.id}
-                            ref={(node) => {
-                              if (node)
-                                commentRefs.current.set(comment.id, node);
-                              else commentRefs.current.delete(comment.id);
-                            }}
-                            className={`comment-card ${activeComment === comment.id ? "active" : ""}`}
-                          >
-                            <div className="comment-meta">
-                              <Avatar
-                                member={member}
-                                index={config?.members.findIndex(
-                                  (m) => m.id === comment.authorId,
-                                )}
-                                small
-                              />
-                              <strong>{member?.name ?? "가족"}</strong>
-                              <div className="feedback-actions">
-                                <button
-                                  className="room-link"
-                                  onClick={() => {
-                                    setActiveComment(comment.id);
-                                    locateRoom(comment.roomId);
+                                <article
+                                  key={comment.id}
+                                  ref={(node) => {
+                                    if (node)
+                                      commentRefs.current.set(comment.id, node);
+                                    else commentRefs.current.delete(comment.id);
                                   }}
+                                  className={`comment-card ${activeComment === comment.id ? "active" : ""}`}
                                 >
-                                  {comment.roomId === wholeHouseId
-                                    ? "집 전체"
-                                    : room?.name}
-                                </button>
+                                  <div className="comment-meta">
+                                    <Avatar
+                                      member={member}
+                                      index={config?.members.findIndex(
+                                        (m) => m.id === comment.authorId,
+                                      )}
+                                      small
+                                    />
+                                    <strong>{member?.name ?? "가족"}</strong>
+                                    <div className="feedback-actions">
+                                      <button
+                                        className="room-link"
+                                        onClick={() => {
+                                          setActiveComment(comment.id);
+                                          locateRoom(comment.roomId);
+                                        }}
+                                      >
+                                        {comment.roomId === wholeHouseId
+                                          ? "집 전체"
+                                          : room?.name}
+                                      </button>
 
-                                {comment.status === "pending" && (
-                                  <button
-                                    className="feedback-accept"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      openFeedback(comment, "accepted")
-                                    }
-                                  >
-                                    채택
-                                  </button>
-                                )}
-                                {comment.status === "pending" && (
-                                  <button
-                                    className="feedback-reject"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      openFeedback(comment, "rejected")
-                                    }
-                                  >
-                                    기각
-                                  </button>
-                                )}
-                                {comment.status !== "pending" && (
-                                  <button
-                                    title="검토 중으로 되돌리기"
-                                    aria-label="되돌리기"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      void submitFeedback(
-                                        {
+                                      {comment.status !== "pending" && (
+                                        <button
+                                          title="검토 중으로 되돌리기"
+                                          aria-label="되돌리기"
+                                          disabled={busy}
+                                          onClick={() =>
+                                            void submitFeedback(
+                                              {
+                                                comment,
+                                                status: "pending",
+                                                id: crypto.randomUUID(),
+                                              },
+                                              "",
+                                              true,
+                                            )
+                                          }
+                                        >
+                                          <RotateCcw size={12} /> 되돌리기
+                                        </button>
+                                      )}
+                                    </div>
+                                    {comment.status === "pending" ? (
+                                      <button
+                                        className="status-badge pending status-editor-trigger"
+                                        disabled={busy}
+                                        aria-label="검토 중 — 피드백 남기기"
+                                        aria-haspopup="dialog"
+                                        onClick={() =>
+                                          openFeedback(comment, "accepted")
+                                        }
+                                      >
+                                        {statusLabels[comment.status]}{" "}
+                                        <ChevronDown size={12} />
+                                      </button>
+                                    ) : (
+                                      <span
+                                        className={`status-badge ${comment.status}`}
+                                      >
+                                        {statusLabels[comment.status]}
+                                      </span>
+                                    )}
+                                    <button
+                                      className="comment-delete"
+                                      title="의견 삭제"
+                                      aria-label="의견 삭제"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setComposerError("");
+                                        setDeleteTarget({
                                           comment,
-                                          status: "pending",
                                           id: crypto.randomUUID(),
-                                        },
-                                        "",
-                                        true,
-                                      )
-                                    }
-                                  >
-                                    <RotateCcw size={12} /> 되돌리기
-                                  </button>
-                                )}
-                              </div>
-                              <span
-                                className={`status-badge ${comment.status}`}
-                              >
-                                {statusLabels[comment.status]}
-                              </span>
-                              <button
-                                className="comment-delete"
-                                title="의견 삭제"
-                                aria-label="의견 삭제"
-                                disabled={busy}
-                                onClick={() => {
-                                  setComposerError("");
-                                  setDeleteTarget({
-                                    comment,
-                                    id: crypto.randomUUID(),
-                                  });
-                                }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                            <p className="comment-content">{comment.content}</p>
-                            {comment.feedback.length > 0 && (
-                              <details className="feedback-history">
-                                <summary>
-                                  피드백 {comment.feedback.length}개{" "}
-                                  <ChevronDown size={13} />
-                                </summary>
-                                <ol>
-                                  {[...comment.feedback]
-                                    .reverse()
-                                    .map((item) => (
-                                      <li key={item.id}>
-                                        <div>
-                                          <Avatar
-                                            member={memberOf(item.authorId)}
-                                            index={config?.members.findIndex(
-                                              (m) => m.id === item.authorId,
-                                            )}
-                                            small
-                                          />
-                                          <strong>
-                                            {memberOf(item.authorId)?.name ??
-                                              "가족"}
-                                          </strong>
-                                          <span
-                                            className={`feedback-state ${item.to}`}
-                                          >
-                                            {statusLabels[item.from]} →{" "}
-                                            {statusLabels[item.to]}
-                                          </span>
-                                        </div>
-                                        {item.reason && <p>{item.reason}</p>}
-                                        <time dateTime={item.createdAt}>
-                                          {shortDate(item.createdAt)}
-                                        </time>
-                                      </li>
-                                    ))}
-                                </ol>
-                              </details>
-                            )}
-                          </article>
+                                        });
+                                      }}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                  <p className="comment-content">
+                                    {comment.content}
+                                  </p>
+                                  {comment.feedback.length > 0 && (
+                                    <details className="feedback-history">
+                                      <summary>
+                                        피드백 {comment.feedback.length}개{" "}
+                                        <ChevronDown size={13} />
+                                      </summary>
+                                      <ol>
+                                        {[...comment.feedback]
+                                          .reverse()
+                                          .map((item) => (
+                                            <li key={item.id}>
+                                              <div>
+                                                <Avatar
+                                                  member={memberOf(
+                                                    item.authorId,
+                                                  )}
+                                                  index={config?.members.findIndex(
+                                                    (m) =>
+                                                      m.id === item.authorId,
+                                                  )}
+                                                  small
+                                                />
+                                                <strong>
+                                                  {memberOf(item.authorId)
+                                                    ?.name ?? "가족"}
+                                                </strong>
+                                                <span
+                                                  className={`feedback-state ${item.to}`}
+                                                >
+                                                  {statusLabels[item.from]} →{" "}
+                                                  {statusLabels[item.to]}
+                                                </span>
+                                              </div>
+                                              {item.reason && (
+                                                <p>{item.reason}</p>
+                                              )}
+                                              <time dateTime={item.createdAt}>
+                                                {shortDate(item.createdAt)}
+                                              </time>
+                                            </li>
+                                          ))}
+                                      </ol>
+                                    </details>
+                                  )}
+                                </article>
                               );
                             })}
                           </div>
@@ -1112,11 +1166,30 @@ export default function Home() {
                 <X size={20} />
               </button>
             </div>
-            <h2 id="feedback-title">
-              {feedback.status === "pending"
-                ? "이 의견을 다시 검토할까요?"
-                : `이 의견을 ${statusLabels[feedback.status]}할까요?`}
-            </h2>
+            <h2 id="feedback-title">이 의견을 어떻게 정리할까요?</h2>
+            <div
+              className="feedback-decision-switch"
+              role="group"
+              aria-label="피드백 선택"
+            >
+              {(["accepted", "rejected"] as const).map((status) => (
+                <button
+                  type="button"
+                  key={status}
+                  className={status}
+                  aria-pressed={feedback.status === status}
+                  disabled={busy}
+                  onClick={() => {
+                    setComposerError("");
+                    setFeedback((f) =>
+                      f ? { ...f, status, id: crypto.randomUUID() } : f,
+                    );
+                  }}
+                >
+                  {statusLabels[status]}
+                </button>
+              ))}
+            </div>
             <blockquote>{feedback.comment.content}</blockquote>
             <div className="composer-author">
               <Avatar member={currentMember} index={memberIndex} small />
@@ -1126,7 +1199,7 @@ export default function Home() {
               </span>
             </div>
             <label htmlFor="feedback-reason">
-              이유를 남겨주세요 <span className="optional">선택</span>
+              피드백을 남겨주세요 <span className="optional">선택</span>
             </label>
             <textarea
               id="feedback-reason"
@@ -1215,6 +1288,9 @@ export default function Home() {
           </form>
         )}
       </dialog>
+      {showPublications && (
+        <PublicationDialog onClose={() => setShowPublications(false)} />
+      )}
       {toast && (
         <div className="toast" role="status">
           <Check size={16} />

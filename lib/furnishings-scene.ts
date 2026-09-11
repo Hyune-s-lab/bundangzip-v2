@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { furnishings } from "./furnishings";
+import { furnishings, type Furnishing } from "./furnishings";
 import { toWorld } from "./house-geometry";
 import type { Room } from "./model";
 
@@ -7,6 +7,7 @@ export function addFurnishings(
   scene: THREE.Scene,
   rooms: Room[],
   fullWalls: boolean,
+  items: Furnishing[] = furnishings,
 ) {
   const material = (color: string, roughness = 0.65) =>
     new THREE.MeshStandardMaterial({ color, roughness });
@@ -14,7 +15,7 @@ export function addFurnishings(
     metal = material("#7f8987", 0.32),
     dark = material("#303b3c", 0.3),
     top = material("#f0eee7", 0.35);
-  for (const item of furnishings) {
+  for (const item of items) {
     const group = new THREE.Group();
     const [x, z] = toWorld(item.x + item.width / 2, item.y + item.depth / 2);
     group.position.set(x, item.elevation ?? 0, z);

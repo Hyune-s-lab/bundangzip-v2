@@ -2890,3 +2890,32 @@ select {
 .publication-sources > div { padding:16px 0; border-bottom:1px solid #eceee9; }
 .publication-sources p { white-space:pre-wrap; line-height:1.7; }
 .publication-questions { border-top:1px solid #d8ddd8; padding-top:20px; }
+
+.status-editor-trigger { display:inline-flex; align-items:center; gap:3px; cursor:pointer; border:0; }
+.status-editor-trigger:hover { box-shadow:0 0 0 1px #aab2be; }
+.feedback-decision-switch { display:flex; gap:6px; padding:4px; margin:0 0 18px; border-radius:10px; background:#f1f3f5; }
+.feedback-decision-switch button { flex:1; min-height:40px; border-radius:7px; color:#737d8b; font-weight:600; }
+.feedback-decision-switch .accepted[aria-pressed="true"] { background:#e3f4e9; color:#16834b; box-shadow:0 1px 3px #17332216; }
+.feedback-decision-switch .rejected[aria-pressed="true"] { background:#fce8e6; color:#c4433d; box-shadow:0 1px 3px #32171716; }
+.furnishing-toggles { display:flex; align-items:center; gap:6px; }
+
+/* Both drawing modes use the same footer controls. */
+.house-3d-panel { display: flex; flex-direction: column; }
+.house-3d-canvas { position: relative; inset: auto; flex: 1; min-height: 0; }
+.house-3d-panel .plan-bottom { background: #fff; }
+.house-3d-toolbar { top: 14px; bottom: auto; left: 14px; transform: none; }
+.house-3d-caption { bottom: 63px; }
+.publication-modal { width: min(1440px, calc(100vw - 32px)); height: calc(100dvh - 48px); max-height: none; max-width: none; padding: 0; border: 1px solid #dfe5ef; border-radius: 16px; background: #fafbf8; color: var(--ink); overflow: hidden; box-shadow: 0 24px 100px #17233140; }
+.publication-modal::backdrop { background: #15203380; backdrop-filter: blur(3px); }
+.publication-modal-heading { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 20px; border-bottom: 1px solid #e3e7ed; background: white; }
+.publication-modal-heading button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; }
+.publication-modal-heading button:hover { background: #f0f2f5; }
+.publication-modal-body { height: calc(100% - 56px); overflow: auto; overscroll-behavior: contain; }
+.publication-modal .publication-editor-bar { padding-inline: 24px; }
+.publication-modal-message { padding: 48px 24px; text-align: center; }
+.publication-modal-message button { margin: 16px auto 0; }
+@media (max-width: 800px) {
+  .publication-modal { width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 12px; }
+  .publication-modal .publication-editor-bar { padding-inline: 12px; }
+  .house-3d-toolbar { top: 12px; bottom: auto; left: 12px; }
+}
