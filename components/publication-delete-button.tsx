@@ -1,12 +1,10 @@
 "use client";
 import { useRef, useState } from "react";
+import { publicationCode } from "@/lib/publication-code";
 import { Trash2 } from "lucide-react";
 import type { PublicationSummary } from "@/lib/publication";
 
-type Target = Pick<
-  PublicationSummary,
-  "id" | "version" | "state" | "number" | "snapshotAt"
->;
+type Target = Pick<PublicationSummary, "id" | "version" | "state" | "sequence">;
 export default function PublicationDeleteButton({
   publication,
   disabled,
@@ -52,7 +50,7 @@ export default function PublicationDeleteButton({
         type="button"
         className="publication-delete-button"
         disabled={disabled}
-        aria-label={`업체 전달용 요약${publication.number ? ` ${publication.number}호` : ""} 삭제`}
+        aria-label={`업체 전달용 요약 ${publicationCode(publication.sequence)} 삭제`}
         onClick={() => {
           setError("");
           dialog.current?.showModal();
@@ -70,18 +68,7 @@ export default function PublicationDeleteButton({
         }}
       >
         <h2>요약 자료를 삭제할까요?</h2>
-        <p>
-          업체 전달용 요약
-          {publication.number ? ` · ${publication.number}호` : ""}
-        </p>
-        <p>
-          {new Intl.DateTimeFormat("ko-KR", {
-            dateStyle: "medium",
-            timeStyle: "medium",
-            timeZone: "Asia/Seoul",
-          }).format(new Date(publication.snapshotAt))}{" "}
-          생성
-        </p>
+        <p>업체 전달용 요약 · {publicationCode(publication.sequence)}</p>
         <p>
           삭제하면 되돌릴 수 없습니다.
           {publication.state === "published" &&

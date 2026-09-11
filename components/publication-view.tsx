@@ -1,23 +1,12 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { publicationCode } from "@/lib/publication-code";
 import type { PublicPublication, Snapshots } from "@/lib/publication";
 const PublicationDrawing = dynamic(() => import("./publication-drawing"), {
   ssr: false,
   loading: () => <p className="publication-model-loading">도면을 불러오는 중…</p>,
 });
-export function publicationDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Seoul",
-  }).format(new Date(value));
-}
 export function SnapshotViewer({ snapshots, drawingVersion }: { snapshots: Snapshots; drawingVersion?: 1 }) {
   // Legacy publications use the preserved v1 model; their original images remain for print.
   const interactive = (drawingVersion ?? 1) === 1;
@@ -82,12 +71,7 @@ export default function PublicationView({
   return (
     <main className="publication-page public-document">
       <header className="publication-header">
-        <h1>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h1>
-        {p.publishedAt && (
-          <p className="publication-meta">
-            발행 <time dateTime={p.publishedAt}>{publicationDate(p.publishedAt)}</time> (한국 시간)
-          </p>
-        )}
+        <h1>업체 전달용 요약 · {publicationCode(p.sequence)}</h1>
       </header>
       <div className="publication-layout">
         <SnapshotViewer snapshots={p.snapshots} drawingVersion={p.drawingVersion} />

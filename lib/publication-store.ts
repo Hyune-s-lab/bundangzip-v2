@@ -22,7 +22,10 @@ import {
   type Snapshots,
 } from "./publication";
 
-import { reservePublicationNumber } from "./publication-number";
+import {
+  reservePublicationNumber,
+  reservePublicationSequence,
+} from "./publication-number";
 
 type Stored = Publication & {
   deletedAt?: string;
@@ -141,7 +144,9 @@ export async function getPublication(id: string): Promise<Publication> {
   const record = await read(id);
   if (!record || record.value.deletedAt)
     throw new HttpError(404, "자료를 찾을 수 없어요.");
-  return draftDto(record.value);
+  return record.value.sequence
+    ? draftDto(record.value)
+    : assignPublicationSequence(id);
 }
 export async function getPublicPublication(id: string) {
   const p = await getPublication(id);
@@ -173,12 +178,15 @@ export async function listPublications(): Promise<PublicationSummary[]> {
     const records = await Promise.all(ids.slice(i, i + 10).map(read));
     for (const record of records)
       if (record && !record.value.deletedAt) {
-        const p = record.value;
+        const p = record.value.sequence
+          ? record.value
+          : await assignPublicationSequence(record.value.id);
         result.push({
           id: p.id,
           version: p.version,
           title: p.title,
           number: p.number,
+          sequence: p.sequence,
           state: p.state,
           snapshotAt: p.snapshotAt,
           updatedAt: p.updatedAt,
@@ -208,13 +216,16 @@ export async function createPublication(
       );
     if (existing.value.creationHash !== creationHash)
       throw new HttpError(409, "같은 ID의 다른 초안이 있어요.");
-    return draftDto(existing.value);
+    return existing.value.sequence
+      ? draftDto(existing.value)
+      : assignPublicationSequence(id);
   }
   const snapshotAt = new Date().toISOString();
   const value: Stored = {
     id,
     creationHash,
     number: await reservePublicationNumber(id, snapshotAt),
+    sequence: await reservePublicationSequence(id),
     state: "draft",
     version: 1,
     title: "분당집 리모델링 계획",
@@ -338,4 +349,29 @@ export async function deletePublication(
       return;
     throw error;
   }
+}
+
+// Assign a permanent global code to older records without changing their content or timestamps.
+export async function assignPublicationSequence(
+  id: string,
+): Promise<Publication> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const record = await read(id);
+    if (!record || record.value.deletedAt)
+      throw new HttpError(404, "자료를 찾을 수 없어요.");
+    if (record.value.sequence) return draftDto(record.value);
+    const sequence = await reservePublicationSequence(id);
+    const value = {
+      ...record.value,
+      sequence,
+      version: record.value.version + 1,
+    };
+    try {
+      await write(value, record.etag);
+      return draftDto(value);
+    } catch (error) {
+      if (!(error instanceof HttpError && error.status === 409)) throw error;
+    }
+  }
+  throw new HttpError(409, "자료가 변경됐어요. 다시 불러와주세요.");
 }

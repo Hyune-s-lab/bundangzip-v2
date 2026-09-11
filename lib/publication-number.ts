@@ -12,22 +12,35 @@ export function publicationDay(timestamp: string) {
   }).format(new Date(timestamp));
 }
 
-// A reservation is immutable. Retrying the same draft reuses its daily number.
-export async function reservePublicationNumber(id: string, timestamp: string) {
+// Reservations are immutable. Deleted publications never release their codes.
+export function reservePublicationNumber(id: string, timestamp: string) {
   const day = publicationDay(timestamp);
+  return reserve(id, `publication-numbers/${day}`, ["numbers", day], 10000);
+}
+
+export function reservePublicationSequence(id: string) {
+  return reserve(id, "publication-sequences", ["sequences"], 1000000);
+}
+
+async function reserve(
+  id: string,
+  bucket: string,
+  localParts: string[],
+  limit: number,
+) {
   const ns = process.env.COMMENT_NAMESPACE ?? process.env.VERCEL_ENV ?? "local";
   if (!/^[a-zA-Z0-9_-]+$/.test(ns)) throw new Error("Invalid namespace");
-  const directory = path.join(
+  // Local development storage is not an asset to include in the server bundle.
+  const directory = path.join(/* turbopackIgnore: true */
     process.env.PUBLICATION_DATA_DIR ??
       path.join(process.cwd(), ".data", "publications"),
-    "numbers",
-    day,
+    ...localParts,
   );
   if (!process.env.BLOB_READ_WRITE_TOKEN)
     await mkdir(directory, { recursive: true });
-  for (let number = 1; number <= 10000; number++) {
+  for (let number = 1; number <= limit; number++) {
     const filename = `${number}.json`;
-    const key = `bundangzip/${ns}/publication-numbers/${day}/${filename}`;
+    const key = `bundangzip/${ns}/${bucket}/${filename}`;
     const localPath = path.join(directory, filename);
     let owner: string | null = null;
     if (process.env.BLOB_READ_WRITE_TOKEN) {
@@ -80,5 +93,5 @@ export async function reservePublicationNumber(id: string, timestamp: string) {
       number--; // Re-read the winning reservation, including same-request retries.
     }
   }
-  throw new Error("Daily publication number limit exceeded");
+  throw new Error("Publication number limit exceeded");
 }
