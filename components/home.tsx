@@ -67,6 +67,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return data;
 }
 const storageKey = "bundangzip.member";
+const allStatusFilters: Record<Status, boolean> = {
+  accepted: true,
+  pending: true,
+  rejected: true,
+};
 function readMember() {
   try {
     return localStorage.getItem(storageKey) ?? "";
@@ -105,6 +110,7 @@ export default function Home() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [statusFilters, setStatusFilters] = useState(allStatusFilters);
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => new Set());
   const [activeComment, setActiveComment] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -288,6 +294,7 @@ export default function Home() {
     });
   };
   const choosePin = (comment: Comment) => {
+    setStatusFilters((previous) => ({ ...previous, [comment.status]: true }));
     expandCommentDay(comment.createdAt);
     locateRoom(comment.roomId);
     setFilter(comment.roomId);
@@ -326,6 +333,7 @@ export default function Home() {
       );
       setFilter(draft.room?.id ?? wholeHouseId);
       expandCommentDay(result.comment.createdAt);
+      setStatusFilters((previous) => ({ ...previous, [result.comment.status]: true }));
       setActiveComment(result.comment.id);
       setDraft(null);
       setContent("");
@@ -428,9 +436,12 @@ export default function Home() {
     setFeedback({ comment, status, id: crypto.randomUUID() });
   };
   const memberOf = (id: string) => config?.members.find((m) => m.id === id);
-  const visibleComments = comments.filter(
+  const roomComments = comments.filter(
     (c) => filter === "all" || c.roomId === filter,
   );
+  const statusComments = comments.filter((c) => statusFilters[c.status]);
+  const visibleComments = roomComments.filter((c) => statusFilters[c.status]);
+  const hasStatusFilter = Object.values(statusFilters).some((enabled) => !enabled);
   const commentDays = groupCommentsByDay(visibleComments);
   const isChoosing = stage === "member";
 
@@ -667,20 +678,20 @@ export default function Home() {
                         value: "all",
                         label: "모든 의견",
                         icon: <House size={17} />,
-                        count: comments.length,
+                        count: statusComments.length,
                       },
                       {
                         value: wholeHouseId,
                         label: "집 전체",
                         icon: <House size={17} />,
-                        count: comments.filter((c) => c.roomId === wholeHouseId)
+                        count: statusComments.filter((c) => c.roomId === wholeHouseId)
                           .length,
                       },
                       ...(config?.rooms ?? []).map((room) => ({
                         value: room.id,
                         label: room.name,
                         icon: <MapPin size={16} />,
-                        count: comments.filter((c) => c.roomId === room.id)
+                        count: statusComments.filter((c) => c.roomId === room.id)
                           .length,
                       })),
                     ]}
@@ -698,6 +709,28 @@ export default function Home() {
                     <Clock3 size={12} /> 최신순
                   </span>
                 </div>
+                <div className="status-filters" role="group" aria-label="의견 상태 필터">
+                  {(["accepted", "pending", "rejected"] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      role="switch"
+                      aria-checked={statusFilters[status]}
+                      aria-label={`${statusLabels[status]} 의견 표시`}
+                      className={`status-filter ${status}`}
+                      onClick={() => {
+                        setStatusFilters((previous) => ({ ...previous, [status]: !previous[status] }));
+                        setActiveComment(null);
+                      }}
+                    >
+                      <span>{statusLabels[status]}</span>
+                      <span className="status-filter-switch" aria-hidden="true" />
+                    </button>
+                  ))}
+                  <span className="status-filter-count" aria-live="polite">
+                    {visibleComments.length}/{roomComments.length}개
+                  </span>
+                </div>
                 <div className="timeline-scroll">
                   {loadingComments && comments.length === 0 ? (
                     <div className="empty-state">
@@ -711,16 +744,24 @@ export default function Home() {
                         <Plus size={15} />
                       </span>
                       <h3>
-                        {filter === "all"
+                        {hasStatusFilter
+                          ? "선택한 상태의 의견이 없어요"
+                          : filter === "all"
                           ? "첫 번째 생각을 남겨보세요"
                           : "아직 이 공간의 의견이 없어요"}
                       </h3>
                       <p>
-                        {filter === wholeHouseId
+                        {hasStatusFilter
+                          ? "상태 토글을 켜면 해당 의견을 볼 수 있어요."
+                          : filter === wholeHouseId
                           ? "예산, 일정, 전체 분위기에 대한 생각을 남겨보세요."
                           : "평면도의 공간이나 상단 의견 쓰기 버튼을 눌러보세요."}
                       </p>
-                      {filter !== "all" && (
+                      {hasStatusFilter ? (
+                        <button type="button" className="text-button" onClick={() => setStatusFilters(allStatusFilters)}>
+                          <RotateCcw size={15} /> 모든 상태 보기
+                        </button>
+                      ) : filter !== "all" && (
                         <button
                           className="text-button"
                           onClick={() => {
