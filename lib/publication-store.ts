@@ -60,6 +60,8 @@ async function read(id: string): Promise<RecordVersion | null> {
     const result = await get(prefix() + name, {
       access: "private",
       useCache: false,
+      // Compression turns the ETag into a weak validator, which cannot be used for CAS.
+      headers: { "Accept-Encoding": "identity" },
     });
     if (!result) return null;
     if (result.statusCode !== 200 || !result.stream)
