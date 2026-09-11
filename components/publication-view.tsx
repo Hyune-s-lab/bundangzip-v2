@@ -19,6 +19,8 @@ export function publicationDate(value: string) {
   }).format(new Date(value));
 }
 export function SnapshotViewer({ snapshots, drawingVersion }: { snapshots: Snapshots; drawingVersion?: 1 }) {
+  // Legacy publications use the preserved v1 model; their original images remain for print.
+  const interactive = (drawingVersion ?? 1) === 1;
   const [scenario, setScenario] = useState<"as-is" | "to-be">("as-is");
   const [view, setView] = useState<"2d" | "3d">("2d");
   return (
@@ -61,19 +63,14 @@ export function SnapshotViewer({ snapshots, drawingVersion }: { snapshots: Snaps
           </button>
         </div>
       </div>
-      {drawingVersion === 1 && (
+      {interactive && (
         <PublicationDrawing scenario={scenario} view={view} fallback={snapshots[`${scenario}-${view}`]} />
       )}
       <img
-        className={`publication-snapshot${drawingVersion === 1 ? " publication-print-snapshot" : ""}`}
+        className={`publication-snapshot${interactive ? " publication-print-snapshot" : ""}`}
         src={snapshots[`${scenario}-${view}`]}
         alt={`${scenario === "as-is" ? "현재 모습" : "리모델링 후"} ${view === "2d" ? "평면도" : "3D 모형"} 스냅샷`}
       />
-      <p className="publication-image-note">
-        {drawingVersion === 1
-          ? "생성 시점의 도면 · 보기 설정은 자료 내용을 변경하지 않습니다."
-          : "이 자료는 이미지로 저장되어 있습니다. 새 초안에서는 가구·벽장 표시와 3D 회전을 사용할 수 있습니다."}
-      </p>
     </section>
   );
 }
@@ -86,20 +83,11 @@ export default function PublicationView({
     <main className="publication-page public-document">
       <header className="publication-header">
         <h1>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h1>
-        <p className="publication-meta">
-          생성{" "}
-          <time dateTime={p.snapshotAt}>{publicationDate(p.snapshotAt)}</time>{" "}
-          (한국 시간)
-          {p.publishedAt && (
-            <>
-              {" "}
-              · 발행{" "}
-              <time dateTime={p.publishedAt}>
-                {publicationDate(p.publishedAt)}
-              </time>
-            </>
-          )}
-        </p>
+        {p.publishedAt && (
+          <p className="publication-meta">
+            발행 <time dateTime={p.publishedAt}>{publicationDate(p.publishedAt)}</time> (한국 시간)
+          </p>
+        )}
       </header>
       <div className="publication-layout">
         <SnapshotViewer snapshots={p.snapshots} drawingVersion={p.drawingVersion} />
@@ -138,10 +126,6 @@ export default function PublicationView({
           )}
         </section>
       </div>
-      <footer className="publication-footer">
-        발행된 읽기 전용 자료입니다. 원본 도면이나 의견이 바뀌어도 이 자료는
-        유지됩니다.
-      </footer>
     </main>
   );
 }

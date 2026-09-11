@@ -249,10 +249,10 @@ export function PublicationList({
               </div>
               <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
               <p>
-                <time dateTime={p.snapshotAt}>
-                  {publicationDate(p.snapshotAt)}
+                <time dateTime={p.publishedAt ?? p.snapshotAt}>
+                  {publicationDate(p.publishedAt ?? p.snapshotAt)}
                 </time>{" "}
-                생성 · 채택안 {p.decisionCount}개
+                {p.publishedAt ? "발행" : "생성"} · 채택안 {p.decisionCount}개
               </p>
             </Link>
           <PublicationDeleteButton publication={p} disabled={phase !== "idle"}
