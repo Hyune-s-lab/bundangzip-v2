@@ -571,19 +571,28 @@ export default function Home() {
                       : "우리 집 3D"}
                 </h1>
               </div>
-              <div className="plan-view-switch" aria-label="도면 보기">
+              <div className="drawing-heading-actions">
                 <button
-                  aria-pressed={view === "2d"}
-                  onClick={() => setView("2d")}
+                  className="publication-entry"
+                  aria-haspopup="dialog"
+                  onClick={() => setShowPublications(true)}
                 >
-                  2D
+                  공개 자료 만들기
                 </button>
-                <button
-                  aria-pressed={view === "3d"}
-                  onClick={() => setView("3d")}
-                >
-                  3D
-                </button>
+                <div className="plan-view-switch" aria-label="도면 보기">
+                  <button
+                    aria-pressed={view === "2d"}
+                    onClick={() => setView("2d")}
+                  >
+                    2D
+                  </button>
+                  <button
+                    aria-pressed={view === "3d"}
+                    onClick={() => setView("3d")}
+                  >
+                    3D
+                  </button>
+                </div>
               </div>
             </div>
             <nav className="scenario-tabs" aria-label="리모델링 전후">
@@ -598,13 +607,6 @@ export default function Home() {
                 onClick={() => setScenario("to-be")}
               >
                 리모델링 후
-              </button>
-              <button
-                className="publication-entry"
-                aria-haspopup="dialog"
-                onClick={() => setShowPublications(true)}
-              >
-                공개 자료 만들기
               </button>
             </nav>
             {config &&
