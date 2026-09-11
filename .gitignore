@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+.data/
+*.tsbuildinfo
+playwright-report/
+test-results/
+# Private reference photos and source floorplans stay local.
+assets/
+.vercel
