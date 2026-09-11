@@ -12,5 +12,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - GitHub repository: `Hyune-s-lab/bundangzip-v2`.
 - Work on `codex/` branches and merge into `main` for production deployment through Vercel's Git integration.
+- Only `main` triggers automatic Vercel deployments; Preview deployments are disabled in `vercel.json`. Validate changes locally before merging; do not wait for a Preview deployment.
 - Do not upload production deployments manually with `vercel deploy`.
 - Keep secrets, local opinion data, and private reference assets out of Git. Production secrets remain in Vercel.
