@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
-  RotateCcw,
+  Crosshair,
   Plus,
   Minus,
   Tags,
   Scan,
   Layers3,
   Armchair,
+  PanelsTopLeft,
 } from "lucide-react";
 import {
   containsPoint,
@@ -34,13 +35,19 @@ import {
 } from "@/lib/house-geometry";
 
 import { addFurnishings } from "@/lib/furnishings-scene";
-import { furnishings, furnishingLabel } from "@/lib/furnishings";
+import {
+  furnishings,
+  furnishingLabel,
+  visibleFurnishings,
+} from "@/lib/furnishings";
 
 type Props = {
   onCapture?: (image: string) => void;
   onCaptureError?: () => void;
   previewOnly?: boolean;
   showFurnishings: boolean;
+  showClosets: boolean;
+  onToggleClosets: () => void;
   onToggleFurnishings: () => void;
   rooms: Room[];
   comments: Comment[];
@@ -53,6 +60,7 @@ type SceneActions = {
   reset: () => void;
   top: () => void;
   zoom: (scale: number) => void;
+  resetZoom: () => void;
   highlight: (id: string | null) => void;
 };
 
@@ -66,6 +74,7 @@ export default function House3D(props: Props) {
     target: THREE.Vector3;
     zoom: number;
   } | null>(null);
+  const [zoomPercent, setZoomPercent] = useState(100);
   const [fullWalls, setFullWalls] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [error, setError] = useState(false);
@@ -103,7 +112,9 @@ export default function House3D(props: Props) {
     container.prepend(renderer.domElement);
     renderer.domElement.setAttribute(
       "aria-label",
-      props.previewOnly ? "리모델링 후 3D 구조. 가구 없이 벽, 창문, 문을 표시합니다. 드래그로 회전하고 스크롤로 확대할 수 있습니다." : "집 3D 모형. 드래그로 회전하고 스크롤로 확대할 수 있습니다. 공간 이름을 누르면 의견을 작성합니다.",
+      props.previewOnly
+        ? "리모델링 후 3D 구조. 가구 없이 벽, 창문, 문을 표시합니다. 드래그로 회전하고 스크롤로 확대할 수 있습니다."
+        : "집 3D 모형. 드래그로 회전하고 스크롤로 확대할 수 있습니다. 공간 이름을 누르면 의견을 작성합니다.",
     );
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 150);
@@ -166,9 +177,16 @@ export default function House3D(props: Props) {
       roughness: 0.15,
       depthWrite: false,
     });
-    const slidingFrame = new THREE.MeshStandardMaterial({ color: 0x247f88, roughness: 0.45 });
+    const slidingFrame = new THREE.MeshStandardMaterial({
+      color: 0x247f88,
+      roughness: 0.45,
+    });
     const slidingGlass = new THREE.MeshStandardMaterial({
-      color: 0x71bfd1, transparent: true, opacity: 0.68, roughness: 0.2, depthWrite: false,
+      color: 0x71bfd1,
+      transparent: true,
+      opacity: 0.68,
+      roughness: 0.2,
+      depthWrite: false,
     });
     const height = fullWalls ? wallHeight : cutawayWallHeight;
     const box = (
@@ -282,14 +300,22 @@ export default function House3D(props: Props) {
         roughness: 0.85,
         side: THREE.DoubleSide,
       });
-      const nicheShapes = storageNiches.filter((n) => n.roomId === room.id).map((niche) =>
-        new THREE.Shape(niche.points.split(" ").map((point) => {
-          const [x, y] = point.split(",").map(Number);
-          const [wx, wz] = toWorld(x, y);
-          return new THREE.Vector2(wx, -wz);
-        })),
+      const nicheShapes = storageNiches
+        .filter((n) => n.roomId === room.id)
+        .map(
+          (niche) =>
+            new THREE.Shape(
+              niche.points.split(" ").map((point) => {
+                const [x, y] = point.split(",").map(Number);
+                const [wx, wz] = toWorld(x, y);
+                return new THREE.Vector2(wx, -wz);
+              }),
+            ),
+        );
+      const mesh = new THREE.Mesh(
+        new THREE.ShapeGeometry([shape, ...nicheShapes]),
+        material,
       );
-      const mesh = new THREE.Mesh(new THREE.ShapeGeometry([shape, ...nicheShapes]), material);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = 0.015;
       mesh.receiveShadow = true;
@@ -315,17 +341,30 @@ export default function House3D(props: Props) {
       const track = slidingTrack(door);
       segmentBox(track, 0.025, 0.055, 0.15, slidingFrame);
       segmentBox(track, 1.94, 2.0, 0.15, slidingFrame);
-      for (const [x, y] of [[door.opening[0], door.opening[1]], [door.opening[2], door.opening[3]]])
+      for (const [x, y] of [
+        [door.opening[0], door.opening[1]],
+        [door.opening[2], door.opening[3]],
+      ])
         segmentBox([x, y, x, y], 0.025, 2.0, 0.075, slidingFrame);
       for (const panel of openSlidingPanels(door.opening, door)) {
         const [ax, ay, bx, by] = panel;
-        segmentBox(panel, 0.07, 1.94, 0.035, door.opaque ? doorMaterial : slidingGlass);
-        for (const [x, y] of [[ax, ay], [bx, by]])
+        segmentBox(
+          panel,
+          0.07,
+          1.94,
+          0.035,
+          door.opaque ? doorMaterial : slidingGlass,
+        );
+        for (const [x, y] of [
+          [ax, ay],
+          [bx, by],
+        ])
           segmentBox([x, y, x, y], 0.055, 1.96, 0.065, slidingFrame);
         segmentBox(panel, 0.055, 0.11, 0.065, slidingFrame);
         segmentBox(panel, 1.9, 1.96, 0.065, slidingFrame);
         // A vertical pull handle distinguishes the panels from fixed glazing.
-        const hx = bx + (ax - bx) * 0.12, hy = by + (ay - by) * 0.12;
+        const hx = bx + (ax - bx) * 0.12,
+          hy = by + (ay - by) * 0.12;
         segmentBox([hx, hy, hx, hy], 0.9, 1.16, 0.08, slidingFrame);
       }
     }
@@ -361,7 +400,12 @@ export default function House3D(props: Props) {
         material,
       );
     };
-    if (props.showFurnishings) addFurnishings(scene, props.rooms, fullWalls);
+    addFurnishings(
+      scene,
+      props.rooms,
+      fullWalls,
+      visibleFurnishings(props.showFurnishings, props.showClosets),
+    );
     // Low tubs stay visible in cutaway mode.
     for (const [x, y, w, d] of [
       [199, 296, 68, 17],
@@ -389,7 +433,11 @@ export default function House3D(props: Props) {
       for (const [roomId, line] of outlines) line.visible = roomId === id;
     };
     actions.current = {
-      reset,
+      reset: () => {
+        reset();
+        setZoomPercent(100);
+        needsRender = true;
+      },
       top: () => {
         camera.position.set(0, 32, 0.01);
         controls.target.set(0, 0, 0);
@@ -397,6 +445,15 @@ export default function House3D(props: Props) {
       },
       zoom: (scale) => {
         camera.zoom = THREE.MathUtils.clamp(camera.zoom * scale, 0.65, 3);
+        setZoomPercent(Math.round(camera.zoom * 100));
+        needsRender = true;
+        camera.updateProjectionMatrix();
+        controls.update();
+      },
+      resetZoom: () => {
+        setZoomPercent(100);
+        needsRender = true;
+        camera.zoom = 1;
         camera.updateProjectionMatrix();
         controls.update();
       },
@@ -441,7 +498,8 @@ export default function House3D(props: Props) {
       renderer.domElement.title = furniture
         ? `${furniture.name} · ${room?.name ?? ""}`
         : "";
-      renderer.domElement.style.cursor = room && !latest.current.previewOnly ? "pointer" : "grab";
+      renderer.domElement.style.cursor =
+        room && !latest.current.previewOnly ? "pointer" : "grab";
       highlight(latest.current.locatedRoom?.id ?? room?.id ?? null);
     };
     const pointerUp = (event: PointerEvent) => {
@@ -501,6 +559,7 @@ export default function House3D(props: Props) {
       disposed = false,
       dirty = true;
     const invalidate = () => {
+      setZoomPercent(Math.round(camera.zoom * 100));
       dirty = true;
     };
     controls.addEventListener("change", invalidate);
@@ -520,7 +579,12 @@ export default function House3D(props: Props) {
       for (const room of props.rooms) {
         const el = labels.current.get(room.id);
         if (!el) continue;
-        const [x, z] = toWorld(...furnishingLabel(room, props.showFurnishings)),
+        const [x, z] = toWorld(
+            ...furnishingLabel(
+              room,
+              props.showFurnishings || props.showClosets,
+            ),
+          ),
           p = new THREE.Vector3(x, 0.12, z).project(camera);
         el.style.left = `${((p.x + 1) * width) / 2}px`;
         el.style.top = `${((1 - p.y) * screenHeight) / 2}px`;
@@ -533,21 +597,38 @@ export default function House3D(props: Props) {
       try {
         renderer.render(scene, camera);
         const snapshot = document.createElement("canvas");
-        snapshot.width = 1176; snapshot.height = 960;
+        snapshot.width = 1176;
+        snapshot.height = 960;
         const ctx = snapshot.getContext("2d")!;
-        ctx.drawImage(renderer.domElement, 0, 0, snapshot.width, snapshot.height);
+        ctx.drawImage(
+          renderer.domElement,
+          0,
+          0,
+          snapshot.width,
+          snapshot.height,
+        );
         // HTML room labels are painted onto the frozen 3D view as well.
-        ctx.font = "600 15px sans-serif"; ctx.textAlign = "center";
+        ctx.font = "600 15px sans-serif";
+        ctx.textAlign = "center";
         for (const room of props.rooms) {
-          const [x, z] = toWorld(...furnishingLabel(room, props.showFurnishings));
+          const [x, z] = toWorld(
+            ...furnishingLabel(
+              room,
+              props.showFurnishings || props.showClosets,
+            ),
+          );
           const p = new THREE.Vector3(x, 0.12, z).project(camera);
-          const sx = (p.x + 1) * snapshot.width / 2, sy = (1 - p.y) * snapshot.height / 2;
+          const sx = ((p.x + 1) * snapshot.width) / 2,
+            sy = ((1 - p.y) * snapshot.height) / 2;
           ctx.fillStyle = "rgba(255,255,255,.85)";
           ctx.fillRect(sx - 38, sy - 13, 76, 24);
-          ctx.fillStyle = "#3e4858"; ctx.fillText(room.name, sx, sy + 4);
+          ctx.fillStyle = "#3e4858";
+          ctx.fillText(room.name, sx, sy + 4);
         }
         props.onCapture(snapshot.toDataURL("image/jpeg", 0.9));
-      } catch { props.onCaptureError?.(); }
+      } catch {
+        props.onCaptureError?.();
+      }
     }
     setReady(true);
     highlight(latest.current.locatedRoom?.id ?? null);
@@ -587,34 +668,42 @@ export default function House3D(props: Props) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [props.rooms, fullWalls, props.showFurnishings, props.previewOnly]);
+  }, [
+    props.rooms,
+    fullWalls,
+    props.showFurnishings,
+    props.showClosets,
+    props.previewOnly,
+  ]);
 
   return (
     <div className="house-3d-panel">
-      {!props.previewOnly && <div
-        className={`whole-house-control ${props.locatedRoom?.id === wholeHouseId ? "is-located" : ""}`}
-      >
-        <button className="whole-house-button" onClick={props.onWholeHouse}>
-          <Plus size={16} /> 집 전체 의견 쓰기
-        </button>
-        {generalComments.length > 0 && (
-          <button
-            className="whole-house-counts"
-            onClick={() => props.onPin(generalComments[0])}
-            aria-label={`집 전체 의견 ${generalComments.length}개 보기`}
-          >
-            {(["accepted", "pending", "rejected"] as const).map((status) => (
-              <span
-                key={status}
-                className={status}
-                title={statusLabels[status]}
-              >
-                {generalComments.filter((c) => c.status === status).length}
-              </span>
-            ))}
+      {!props.previewOnly && (
+        <div
+          className={`whole-house-control ${props.locatedRoom?.id === wholeHouseId ? "is-located" : ""}`}
+        >
+          <button className="whole-house-button" onClick={props.onWholeHouse}>
+            <Plus size={16} /> 집 전체 의견 쓰기
           </button>
-        )}
-      </div>}
+          {generalComments.length > 0 && (
+            <button
+              className="whole-house-counts"
+              onClick={() => props.onPin(generalComments[0])}
+              aria-label={`집 전체 의견 ${generalComments.length}개 보기`}
+            >
+              {(["accepted", "pending", "rejected"] as const).map((status) => (
+                <span
+                  key={status}
+                  className={status}
+                  title={statusLabels[status]}
+                >
+                  {generalComments.filter((c) => c.status === status).length}
+                </span>
+              ))}
+            </button>
+          )}
+        </div>
+      )}
       <div className="house-3d-canvas" ref={host}>
         {ready && !error && (
           <div
@@ -683,28 +772,12 @@ export default function House3D(props: Props) {
       </div>
       <div className="house-3d-toolbar" aria-label="3D 보기 설정">
         <button
-          onClick={() => actions.current?.reset()}
-          title="처음 시점"
-          aria-label="처음 시점"
-        >
-          <RotateCcw size={16} />
-        </button>
-        <button
           onClick={() => actions.current?.top()}
           title="위에서 보기"
           aria-label="위에서 보기"
         >
           <Scan size={16} />
         </button>
-        <i />
-        {!props.previewOnly && <button
-          aria-label="가구·가전 표시"
-          title="가구·가전 표시"
-          aria-pressed={props.showFurnishings}
-          onClick={props.onToggleFurnishings}
-        >
-          <Armchair size={16} />
-        </button>}
         <button
           aria-pressed={fullWalls}
           onClick={() => setFullWalls((v) => !v)}
@@ -720,20 +793,66 @@ export default function House3D(props: Props) {
         >
           <Tags size={16} />
         </button>
-        <i />
-        <button
-          onClick={() => actions.current?.zoom(1 / 1.2)}
-          aria-label="3D 축소"
-        >
-          <Minus size={16} />
-        </button>
-        <button onClick={() => actions.current?.zoom(1.2)} aria-label="3D 확대">
-          <Plus size={16} />
-        </button>
+      </div>
+      <div className="plan-bottom">
+        {!props.previewOnly && (
+          <div className="furnishing-toggles">
+            <button
+              className="furnishings-toggle"
+              aria-pressed={props.showFurnishings}
+              onClick={props.onToggleFurnishings}
+            >
+              <Armchair size={15} /> 가구
+            </button>
+            <button
+              className="furnishings-toggle"
+              aria-pressed={props.showClosets}
+              onClick={props.onToggleClosets}
+            >
+              <PanelsTopLeft size={15} /> 벽장
+            </button>
+          </div>
+        )}
+        <div className="zoom-controls">
+          <button
+            title="축소"
+            aria-label="3D 축소"
+            disabled={zoomPercent <= 65}
+            onClick={() => actions.current?.zoom(1 / 1.2)}
+          >
+            <Minus size={16} />
+          </button>
+          <button
+            className="zoom-value"
+            title="원래 크기"
+            onClick={() => actions.current?.resetZoom()}
+          >
+            {zoomPercent}%
+          </button>
+          <button
+            title="확대"
+            aria-label="3D 확대"
+            disabled={zoomPercent >= 300}
+            onClick={() => actions.current?.zoom(1.2)}
+          >
+            <Plus size={16} />
+          </button>
+          <button
+            title="도면 맞춤"
+            aria-label="도면 맞춤"
+            onClick={() => actions.current?.reset()}
+          >
+            <Crosshair size={16} />
+          </button>
+        </div>
       </div>
       <div className="house-3d-caption">
         <span>드래그로 회전 · 스크롤로 확대</span>
-        <span>{props.previewOnly ? "현재 구조 · 벽 높이 2.4m 가정" : "가구 배치·크기 추정 · 벽 높이 2.4m 가정"}</span>
+        <span>
+          {props.previewOnly
+            ? "현재 구조 · 벽 높이 2.4m 가정"
+            : "가구 배치·크기 추정 · 벽 높이 2.4m 가정"}
+        </span>
       </div>
     </div>
   );

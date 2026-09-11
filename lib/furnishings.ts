@@ -340,3 +340,13 @@ export function furnishingLabel(
   if (room.id === "balcony-nw") return [291, 115];
   return room.label;
 }
+
+// Built-in closets can be inspected independently of movable furniture and appliances.
+export function visibleFurnishings(
+  showFurniture: boolean,
+  showClosets: boolean,
+): Furnishing[] {
+  return furnishings.filter((item) =>
+    item.kind === "closet" ? showClosets : showFurniture,
+  );
+}

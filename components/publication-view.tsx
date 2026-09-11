@@ -25,14 +25,14 @@ export function SnapshotViewer({ snapshots }: { snapshots: Snapshots }) {
             aria-pressed={scenario === "as-is"}
             onClick={() => setScenario("as-is")}
           >
-            현재 모습 <small>As-is</small>
+            현재 모습
           </button>
           <button
             type="button"
             aria-pressed={scenario === "to-be"}
             onClick={() => setScenario("to-be")}
           >
-            리모델링 후 <small>To-be</small>
+            리모델링 후
           </button>
         </div>
         <div className="plan-view-switch" role="group" aria-label="스냅샷 보기">

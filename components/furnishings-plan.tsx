@@ -1,9 +1,9 @@
-import { furnishings } from "@/lib/furnishings";
+import type { Furnishing } from "@/lib/furnishings";
 
-export default function FurnishingsPlan() {
+export default function FurnishingsPlan({ items }: { items: Furnishing[] }) {
   return (
     <g className="plan-furnishings" aria-hidden="true" pointerEvents="none">
-      {furnishings.map((item) => {
+      {items.map((item) => {
         const { x, y, width: w, depth: d, kind } = item;
         const side = item.facing === "east" || item.facing === "west";
         const localW = side ? d : w, localD = side ? w : d;

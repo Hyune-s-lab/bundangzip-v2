@@ -44,8 +44,12 @@ async function api<T>(url: string, method = "GET", body?: unknown): Promise<T> {
 }
 export function PublicationList({
   initial,
+  onOpen,
+  onClose,
 }: {
   initial: PublicationSummary[];
+  onOpen?: (id: string) => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<
@@ -74,7 +78,8 @@ export function PublicationList({
         "POST",
         pending.current,
       );
-      router.push(`/publications/${result.publication.id}`);
+      if (onOpen) onOpen(result.publication.id);
+      else router.push(`/publications/${result.publication.id}`);
     } catch (e) {
       setError((e as Error).message);
       setPhase("idle");
@@ -106,7 +111,18 @@ export function PublicationList({
   };
   return (
     <main className="publication-page">
-      <Link href="/" className="publication-back">
+      <Link
+        href="/"
+        className="publication-back"
+        onClick={
+          onClose
+            ? (event) => {
+                event.preventDefault();
+                onClose();
+              }
+            : undefined
+        }
+      >
         <ArrowLeft size={16} /> 가족 기록장
       </Link>
       <header className="publication-header publication-list-heading">
@@ -133,8 +149,9 @@ export function PublicationList({
         </button>
       </header>
       <p className="publication-notice">
-        As-is·To-be의 2D·3D 모습을 고정하고, 채택된 의견의 공간과 본문만
-        가져옵니다. 초안은 가족만 볼 수 있으며 발행한 뒤에 공개 링크가 생깁니다.
+        현재 모습과 리모델링 후의 2D·3D 모습을 고정하고, 채택된 의견의 공간과
+        본문만 가져옵니다. 초안은 가족만 볼 수 있으며 발행한 뒤에 공개 링크가
+        생깁니다.
       </p>
       {error && (
         <p className="publication-error" role="alert">
@@ -205,6 +222,14 @@ export function PublicationList({
             key={p.id}
             className="publication-list-card"
             href={`/publications/${p.id}`}
+            onClick={
+              onOpen
+                ? (event) => {
+                    event.preventDefault();
+                    onOpen(p.id);
+                  }
+                : undefined
+            }
           >
             <div>
               <span className={`publication-state ${p.state}`}>
@@ -224,7 +249,15 @@ export function PublicationList({
     </main>
   );
 }
-export function PublicationEditor({ initial }: { initial: Publication }) {
+export function PublicationEditor({
+  initial,
+  onBack,
+  onDirtyChange,
+}: {
+  initial: Publication;
+  onBack?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [saved, setSaved] = useState(initial);
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -242,6 +275,9 @@ export function PublicationEditor({ initial }: { initial: Publication }) {
     editable &&
     JSON.stringify([form.title, form.introduction, form.brief]) !==
       JSON.stringify([saved.title, saved.introduction, saved.brief]);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
   useEffect(() => {
     if (saved.state === "published")
       setLink(`${window.location.origin}/share/${saved.id}`);
@@ -380,8 +416,14 @@ export function PublicationEditor({ initial }: { initial: Publication }) {
             if (
               dirty &&
               !window.confirm("저장하지 않은 편집 내용을 두고 나갈까요?")
-            )
+            ) {
               e.preventDefault();
+              return;
+            }
+            if (onBack) {
+              e.preventDefault();
+              onBack();
+            }
           }}
         >
           <ArrowLeft size={16} /> 공개 자료

@@ -40,6 +40,8 @@ export default function SnapshotCapture({
     locatedRoom: null,
     previewOnly: true,
     showFurnishings: step < 2,
+    showClosets: step < 2,
+    onToggleClosets: noop,
     onToggleFurnishings: noop,
     onChoose: noop,
     onPin: noop,
