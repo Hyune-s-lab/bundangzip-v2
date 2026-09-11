@@ -6,6 +6,10 @@ export function publicationDate(value: string) {
     year: "numeric",
     month: "long",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
     timeZone: "Asia/Seoul",
   }).format(new Date(value));
 }
@@ -74,13 +78,21 @@ export default function PublicationView({
         <span className="publication-brand">
           bundangzip-v2 <span>공유 자료</span>
         </span>
-        <h1>{p.title}</h1>
+        <h1>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h1>
         <p className="publication-meta">
-          {publicationDate(p.snapshotAt)} 기준 · 인테리어 공사 요청서
+          생성{" "}
+          <time dateTime={p.snapshotAt}>{publicationDate(p.snapshotAt)}</time>{" "}
+          (한국 시간)
+          {p.publishedAt && (
+            <>
+              {" "}
+              · 발행{" "}
+              <time dateTime={p.publishedAt}>
+                {publicationDate(p.publishedAt)}
+              </time>
+            </>
+          )}
         </p>
-        {p.introduction && (
-          <p className="publication-introduction">{p.introduction}</p>
-        )}
       </header>
       <div className="publication-layout">
         <SnapshotViewer snapshots={p.snapshots} />

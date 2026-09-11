@@ -22,6 +22,8 @@ import {
   type Snapshots,
 } from "./publication";
 
+import { reservePublicationNumber } from "./publication-number";
+
 type Stored = Publication & {
   creationHash: string;
   operation?: { id: string; hash: string };
@@ -168,6 +170,7 @@ export async function listPublications(): Promise<PublicationSummary[]> {
         result.push({
           id: p.id,
           title: p.title,
+          number: p.number,
           state: p.state,
           snapshotAt: p.snapshotAt,
           updatedAt: p.updatedAt,
@@ -193,6 +196,7 @@ export async function createPublication(
   const value: Stored = {
     id,
     creationHash,
+    number: await reservePublicationNumber(id, snapshotAt),
     state: "draft",
     version: 1,
     title: "분당집 리모델링 계획",

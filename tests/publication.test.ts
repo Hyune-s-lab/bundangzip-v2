@@ -150,7 +150,8 @@ test("save and publish compete with CAS; retries are idempotent and publication 
     assert.deepEqual(await editPublication(p.id, final, true), latest);
   } else assert.deepEqual(await editPublication(p.id, publish, true), latest);
   await assert.rejects(editPublication(p.id, edit(latest)), { status: 409 });
-  assert.equal((await getPublicPublication(p.id)).title, latest.title);
+  assert.equal((await getPublicPublication(p.id)).number, latest.number);
+  assert.equal("title" in (await getPublicPublication(p.id)), false);
   assert.ok(
     (await listPublications()).some(
       (d) => d.id === p.id && d.state === "published",
