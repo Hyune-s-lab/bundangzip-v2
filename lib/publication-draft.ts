@@ -13,8 +13,9 @@ export async function createSummarizedPublication(
   id: string,
   snapshots: Snapshots,
   summarize = generateSummary,
+  drawingVersion?: 1,
 ) {
-  const draft = await createPublication(id, snapshots);
+  const draft = await createPublication(id, snapshots, drawingVersion);
   if (draft.state !== "draft" || draft.version > 1 || hasBrief(draft.brief))
     return draft;
   const brief = await summarize(draft.decisions);

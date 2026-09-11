@@ -25,6 +25,7 @@ import {
 import { reservePublicationNumber } from "./publication-number";
 
 type Stored = Publication & {
+  deletedAt?: string;
   creationHash: string;
   operation?: { id: string; hash: string };
 };
@@ -128,12 +129,18 @@ async function write(value: Stored, expected?: string) {
   await task;
 }
 function draftDto(value: Stored): Publication {
-  const { creationHash: _creationHash, operation: _operation, ...p } = value;
+  const {
+    creationHash: _creationHash,
+    operation: _operation,
+    deletedAt: _deletedAt,
+    ...p
+  } = value;
   return p;
 }
 export async function getPublication(id: string): Promise<Publication> {
   const record = await read(id);
-  if (!record) throw new HttpError(404, "자료를 찾을 수 없어요.");
+  if (!record || record.value.deletedAt)
+    throw new HttpError(404, "자료를 찾을 수 없어요.");
   return draftDto(record.value);
 }
 export async function getPublicPublication(id: string) {
@@ -165,10 +172,11 @@ export async function listPublications(): Promise<PublicationSummary[]> {
   for (let i = 0; i < ids.length; i += 10) {
     const records = await Promise.all(ids.slice(i, i + 10).map(read));
     for (const record of records)
-      if (record) {
+      if (record && !record.value.deletedAt) {
         const p = record.value;
         result.push({
           id: p.id,
+          version: p.version,
           title: p.title,
           number: p.number,
           state: p.state,
@@ -184,10 +192,20 @@ export async function listPublications(): Promise<PublicationSummary[]> {
 export async function createPublication(
   id: string,
   snapshots: Snapshots,
+  drawingVersion?: 1,
 ): Promise<Publication> {
-  const creationHash = digest(JSON.stringify(snapshots)),
+  const creationHash = digest(
+      JSON.stringify(
+        drawingVersion ? { snapshots, drawingVersion } : snapshots,
+      ),
+    ),
     existing = await read(id);
   if (existing) {
+    if (existing.value.deletedAt)
+      throw new HttpError(
+        410,
+        "삭제된 자료는 다시 만들 수 없어요. 새 초안을 만들어주세요.",
+      );
     if (existing.value.creationHash !== creationHash)
       throw new HttpError(409, "같은 ID의 다른 초안이 있어요.");
     return draftDto(existing.value);
@@ -206,6 +224,7 @@ export async function createPublication(
     updatedAt: snapshotAt,
     publishedAt: null,
     snapshots: structuredClone(snapshots),
+    ...(drawingVersion ? { drawingVersion } : {}),
     decisions: snapshotDecisions(await listComments(), randomUUID),
   };
   try {
@@ -213,7 +232,11 @@ export async function createPublication(
   } catch (e) {
     if (e instanceof HttpError && e.status === 409) {
       const retry = await read(id);
-      if (retry?.value.creationHash === creationHash)
+      if (
+        retry &&
+        !retry.value.deletedAt &&
+        retry.value.creationHash === creationHash
+      )
         return draftDto(retry.value);
     }
     throw e;
@@ -226,7 +249,8 @@ export async function editPublication(
   publish = false,
 ): Promise<Publication> {
   const record = await read(id);
-  if (!record) throw new HttpError(404, "초안을 찾을 수 없어요.");
+  if (!record || record.value.deletedAt)
+    throw new HttpError(404, "초안을 찾을 수 없어요.");
   const hash = digest(JSON.stringify({ ...input, publish }));
   if (record.value.operation?.id === input.requestId) {
     if (record.value.operation.hash !== hash)
@@ -268,9 +292,50 @@ export async function editPublication(
   } catch (e) {
     if (e instanceof HttpError && e.status === 409) {
       const retry = await read(id);
-      if (retry?.value.operation?.hash === hash) return draftDto(retry.value);
+      if (
+        retry &&
+        !retry.value.deletedAt &&
+        retry.value.operation?.hash === hash
+      )
+        return draftDto(retry.value);
     }
     throw e;
   }
   return draftDto(value);
+}
+
+// Keep the ID and daily number reserved so delayed retries cannot resurrect a link.
+export async function deletePublication(
+  id: string,
+  expectedVersion: number,
+): Promise<void> {
+  const record = await read(id);
+  if (!record) throw new HttpError(404, "자료를 찾을 수 없어요.");
+  if (record.value.deletedAt) return;
+  if (record.value.version !== expectedVersion)
+    throw new HttpError(
+      409,
+      "자료가 변경됐어요. 최신 내용을 확인한 뒤 삭제해주세요.",
+    );
+  const now = new Date().toISOString();
+  try {
+    await write(
+      {
+        ...record.value,
+        deletedAt: now,
+        updatedAt: now,
+        version: record.value.version + 1,
+        operation: undefined,
+      },
+      record.etag,
+    );
+  } catch (error) {
+    if (
+      error instanceof HttpError &&
+      error.status === 409 &&
+      (await read(id))?.value.deletedAt
+    )
+      return;
+    throw error;
+  }
 }

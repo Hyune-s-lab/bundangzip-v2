@@ -7,6 +7,7 @@ import { reservePublicationNumber } from "../lib/publication-number";
 import { addComment, addFeedback } from "../lib/store";
 import {
   createPublication,
+  deletePublication,
   editPublication,
   getPublication,
   getPublicPublication,
@@ -45,7 +46,7 @@ async function main() {
         "data:image/jpeg;base64,/9j/" + "A".repeat(100000),
       ]),
     ) as Snapshots;
-    const p = await createPublication(randomUUID(), snapshots);
+    const p = await createPublication(randomUUID(), snapshots, 1);
     assert.equal(p.decisions.length, 1);
     assert.equal(p.number, 1);
     const ids = [randomUUID(), randomUUID(), randomUUID()];
@@ -85,8 +86,14 @@ async function main() {
     await assert.rejects(editPublication(p.id, edit(published)), {
       status: 409,
     });
+    assert.equal((await getPublicPublication(p.id)).drawingVersion, 1);
+    await deletePublication(p.id, published.version);
+    await deletePublication(p.id, published.version);
+    await assert.rejects(getPublicPublication(p.id), { status: 404 });
+    await assert.rejects(createPublication(p.id, snapshots, 1), { status: 410 });
+    await assert.rejects(editPublication(p.id, request, true), { status: 404 });
     console.log(
-      "Blob: large snapshots, comment feedback, CAS, retry and immutable publication passed",
+      "Blob: versioned snapshots, CAS, retry, publication and deletion passed",
     );
   } finally {
     const records = await list({ prefix: `bundangzip/${ns}/` });
