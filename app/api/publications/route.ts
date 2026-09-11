@@ -1,7 +1,9 @@
 import { requireAuth } from "@/lib/auth";
 import { errorResponse, json, readJson, sameOrigin } from "@/lib/http";
 import { createPublicationSchema } from "@/lib/publication";
-import { createPublication, listPublications } from "@/lib/publication-store";
+import { listPublications } from "@/lib/publication-store";
+import { createSummarizedPublication } from "@/lib/publication-draft";
+export const maxDuration = 120;
 export const runtime = "nodejs";
 export async function GET() {
   try {
@@ -19,7 +21,12 @@ export async function POST(request: Request) {
       await readJson(request, 3_300_000),
     );
     return json(
-      { publication: await createPublication(input.id, input.snapshots) },
+      {
+        publication: await createSummarizedPublication(
+          input.id,
+          input.snapshots,
+        ),
+      },
       201,
     );
   } catch (e) {

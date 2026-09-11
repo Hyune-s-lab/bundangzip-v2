@@ -97,6 +97,11 @@ export function PublicationList({
     setError("");
     try {
       const { comments } = await api<{ comments: Comment[] }>("/api/comments");
+      if (!comments.some((c) => c.status === "accepted" && !c.deletion)) {
+        setError("채택된 의견이 없어요. 의견을 채택한 뒤 요약을 만들어주세요.");
+        setPhase("idle");
+        return;
+      }
       const count = comments.filter(
         (c) => c.status === "pending" && !c.deletion,
       ).length;
@@ -142,20 +147,33 @@ export function PublicationList({
             : phase === "capture"
               ? "도면을 저장하는 중…"
               : phase === "save"
-                ? "초안을 만드는 중…"
+                ? "AI가 업체 전달용 요약을 만드는 중…"
                 : pending.current
-                  ? "초안 저장 다시 시도"
+                  ? "초안·AI 요약 다시 시도"
                   : "현재 상태로 초안 만들기"}
         </button>
       </header>
       <p className="publication-notice">
         현재 모습과 리모델링 후의 2D·3D 모습을 고정하고, 채택된 의견의 공간과
-        본문만 가져옵니다. 초안은 가족만 볼 수 있으며 발행한 뒤에 공개 링크가
-        생깁니다.
+        본문을 AI가 업체 전달용으로 요약합니다. 초안은 가족만 볼 수 있으며
+        발행한 뒤에 공개 링크가 생깁니다.
       </p>
       {error && (
         <p className="publication-error" role="alert">
           {error}
+          {pending.current && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                const id = pending.current!.id;
+                if (onOpen) onOpen(id);
+                else router.push(`/publications/${id}`);
+              }}
+            >
+              저장된 초안 확인
+            </button>
+          )}
         </p>
       )}
       {phase === "capture" && (
@@ -235,10 +253,13 @@ export function PublicationList({
               <span className={`publication-state ${p.state}`}>
                 {p.state === "draft" ? "초안" : "발행됨"}
               </span>
-              <h2>{p.title}</h2>
+              <h2>업체 전달용 요약{p.number ? ` · ${p.number}호` : ""}</h2>
             </div>
             <p>
-              {publicationDate(p.snapshotAt)} 기준 · 의견 {p.decisionCount}개
+              <time dateTime={p.snapshotAt}>
+                {publicationDate(p.snapshotAt)}
+              </time>{" "}
+              생성 · 채택안 {p.decisionCount}개
             </p>
             <span>
               {p.state === "draft" ? "편집하기 →" : "공개 링크 보기 →"}
@@ -272,9 +293,7 @@ export function PublicationEditor({
   );
   const editable = saved.state === "draft";
   const dirty =
-    editable &&
-    JSON.stringify([form.title, form.introduction, form.brief]) !==
-      JSON.stringify([saved.title, saved.introduction, saved.brief]);
+    editable && JSON.stringify(form.brief) !== JSON.stringify(saved.brief);
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
@@ -455,7 +474,6 @@ export function PublicationEditor({
               className="primary-button"
               disabled={
                 busy ||
-                !form.title.trim() ||
                 !hasBrief(form.brief) ||
                 form.brief.spaces.some(
                   (s) => !s.roomName.trim() || !s.work.trim(),
@@ -522,33 +540,21 @@ export function PublicationEditor({
             <span className="publication-brand">
               bundangzip-v2 <span>공개용 초안</span>
             </span>
-            <label className="publication-field">
-              제목
-              <input
-                maxLength={120}
-                value={form.title}
-                disabled={busy}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
-              />
-            </label>
-            <label className="publication-field">
-              소개
-              <textarea
-                maxLength={4000}
-                rows={3}
-                placeholder="전달할 배경이나 요청사항을 적어주세요."
-                value={form.introduction}
-                disabled={busy}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, introduction: e.target.value }))
-                }
-              />
-            </label>
             <p className="publication-meta">
-              {publicationDate(form.snapshotAt)} 기준 · 원본 의견과 별도로
-              편집됩니다.
+              {form.number ? `${form.number}호 · ` : ""}생성{" "}
+              <time dateTime={form.snapshotAt}>
+                {publicationDate(form.snapshotAt)}
+              </time>{" "}
+              (한국 시간)
+              {form.updatedAt !== form.snapshotAt && (
+                <>
+                  {" "}
+                  · 최종 저장{" "}
+                  <time dateTime={form.updatedAt}>
+                    {publicationDate(form.updatedAt)}
+                  </time>
+                </>
+              )}
             </p>
           </header>
           <div className="publication-layout">

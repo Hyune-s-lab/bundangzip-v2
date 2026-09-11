@@ -66,6 +66,7 @@ export type Publication = {
   id: string;
   state: "draft" | "published";
   version: number;
+  number?: number;
   title: string;
   introduction: string;
   snapshotAt: string;
@@ -77,16 +78,17 @@ export type Publication = {
 };
 export type PublicationSummary = Pick<
   Publication,
-  "id" | "state" | "title" | "snapshotAt" | "updatedAt" | "publishedAt"
+  | "id"
+  | "state"
+  | "title"
+  | "number"
+  | "snapshotAt"
+  | "updatedAt"
+  | "publishedAt"
 > & { decisionCount: number };
 export type PublicPublication = Pick<
   Publication,
-  | "title"
-  | "introduction"
-  | "snapshotAt"
-  | "publishedAt"
-  | "snapshots"
-  | "brief"
+  "number" | "snapshotAt" | "publishedAt" | "snapshots" | "brief"
 >;
 export const createPublicationSchema = z
   .object({ id: z.uuid(), snapshots: snapshotsSchema })
@@ -140,8 +142,7 @@ export function snapshotDecisions(
 }
 export function publicPublication(p: Publication): PublicPublication {
   return {
-    title: p.title,
-    introduction: p.introduction,
+    number: p.number,
     snapshotAt: p.snapshotAt,
     publishedAt: p.publishedAt,
     snapshots: { ...p.snapshots },

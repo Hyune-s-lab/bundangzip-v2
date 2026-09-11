@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { del, list } from "@vercel/blob";
+import { reservePublicationNumber } from "../lib/publication-number";
 import { addComment, addFeedback } from "../lib/store";
 import {
   createPublication,
@@ -46,6 +47,11 @@ async function main() {
     ) as Snapshots;
     const p = await createPublication(randomUUID(), snapshots);
     assert.equal(p.decisions.length, 1);
+    assert.equal(p.number, 1);
+    const ids = [randomUUID(), randomUUID(), randomUUID()];
+    const numbers = await Promise.all(ids.map(id => reservePublicationNumber(id, p.snapshotAt)));
+    assert.deepEqual([...numbers].sort((a, b) => a - b), [2, 3, 4]);
+    assert.equal(await reservePublicationNumber(ids[0], p.snapshotAt), numbers[0]);
     const edit = (p: Publication) => ({
       requestId: randomUUID(),
       expectedVersion: p.version,
